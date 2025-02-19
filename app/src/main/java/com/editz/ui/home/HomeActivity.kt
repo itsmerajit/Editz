@@ -7,12 +7,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.editz.theme.EditzColors
 import com.editz.theme.EditzTheme
+import com.editz.ui.create.CreateVideoScreen
 import com.editz.ui.home.components.*
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -34,8 +35,41 @@ class HomeActivity : ComponentActivity() {
         
         setContent {
             EditzTheme {
-                HomeScreen()
+                MainScreen()
             }
+        }
+    }
+}
+
+@Composable
+fun MainScreen() {
+    var currentScreen by remember { mutableStateOf("home") }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(EditzColors.Background)
+            .systemBarsPadding()
+    ) {
+        when (currentScreen) {
+            "home" -> HomeScreen()
+            "create" -> CreateVideoScreen(
+                onPickVideo = {
+                    // TODO: Implement video picking
+                }
+            )
+        }
+        
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
+            BottomNavigation(
+                currentScreen = currentScreen,
+                onScreenChange = { screen ->
+                    currentScreen = screen
+                }
+            )
         }
     }
 }
@@ -47,8 +81,6 @@ fun HomeScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(EditzColors.Background)
-            .systemBarsPadding() // Add padding for system bars
             .padding(16.dp)
     ) {
         SearchBar()
@@ -58,7 +90,5 @@ fun HomeScreen(
         QuickStats()
         FolderSection()
         ProjectsList()
-        Spacer(modifier = Modifier.weight(1f))
-        BottomNavigation()
     }
 } 

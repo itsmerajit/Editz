@@ -9,6 +9,8 @@ import com.editz.theme.EditzColors
 
 @Composable
 fun BottomNavigation(
+    currentScreen: String,
+    onScreenChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     NavigationBar(
@@ -16,32 +18,32 @@ fun BottomNavigation(
         containerColor = EditzColors.Surface
     ) {
         NavigationBarItem(
-            selected = true,
-            onClick = { },
+            selected = currentScreen == "home",
+            onClick = { onScreenChange("home") },
             icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
             label = { Text("Home") }
         )
         NavigationBarItem(
-            selected = false,
-            onClick = { },
+            selected = currentScreen == "create",
+            onClick = { onScreenChange("create") },
             icon = { Icon(Icons.Default.Add, contentDescription = "Create") },
             label = { Text("Create") }
         )
         NavigationBarItem(
-            selected = false,
-            onClick = { },
+            selected = currentScreen == "pro",
+            onClick = { onScreenChange("pro") },
             icon = { Icon(Icons.Default.Star, contentDescription = "Pro") },
             label = { Text("Pro") }
         )
         NavigationBarItem(
-            selected = false,
-            onClick = { },
+            selected = currentScreen == "files",
+            onClick = { onScreenChange("files") },
             icon = { Icon(Icons.Default.Folder, contentDescription = "Files") },
             label = { Text("Files") }
         )
         NavigationBarItem(
-            selected = false,
-            onClick = { },
+            selected = currentScreen == "profile",
+            onClick = { onScreenChange("profile") },
             icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
             label = { Text("Profile") }
         )
