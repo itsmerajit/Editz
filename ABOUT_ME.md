@@ -2,8 +2,8 @@
 
 ## Project Details
 - **Created Date**: 2025-02-19
-- **Last Updated**: 2025-02-19 19:05:27 +05:30
-- **Version**: 0.1.0 (Initial Development)
+- **Last Updated**: 2025-02-19 19:09:19 +05:30
+- **Version**: 0.1.1 (Development)
 
 ## Project Overview
 Editz is a mobile application designed for video editing and content creation, built with modern Android development practices.
@@ -25,6 +25,7 @@ Editz is a mobile application designed for video editing and content creation, b
 - Video Selection Screen
 - Home Dashboard
 - Project Management
+- Dynamic Screen Switching
 
 ## Developer
 - **Name**: Rajit Saha
@@ -34,8 +35,14 @@ Editz is a mobile application designed for video editing and content creation, b
 - Implemented Bottom Navigation
 - Created Screen Switching Mechanism
 - Added Create Video Screen
+- Introduced MainScreen for navigation management
+- Refactored HomeScreen layout
+- Enhanced BottomNavigation component with state management
 
 ## Future Roadmap
 - Enhance Video Editing Capabilities
 - Implement Advanced Project Management
 - Improve UI/UX Design
+- Add More Navigation Screens
+- Implement Video selection Logic
+- Create Comprehensive Error Handling
