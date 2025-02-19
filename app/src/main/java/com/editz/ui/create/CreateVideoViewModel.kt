@@ -51,6 +51,10 @@ class CreateVideoViewModel @Inject constructor(
             }
         }
     }
+
+    fun resetState() {
+        _uiState.value = CreateVideoUiState.PermissionsGranted
+    }
 }
 
 sealed class CreateVideoUiState {

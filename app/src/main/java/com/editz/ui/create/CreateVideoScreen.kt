@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.editz.theme.EditzColors
+import com.editz.ui.preview.VideoPreviewScreen
 import com.editz.utils.VideoDetails
 
 @Composable
@@ -49,28 +50,32 @@ fun CreateVideoScreen(
         viewModel.checkPermissions(context)
     }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(EditzColors.Background)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
     ) {
         when (uiState) {
             is CreateVideoUiState.Initial -> {
                 // Loading state if needed
             }
             is CreateVideoUiState.Loading -> {
-                CircularProgressIndicator(color = EditzColors.Purple)
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = EditzColors.Purple
+                )
             }
             is CreateVideoUiState.PermissionsGranted -> {
-                PickVideoCard {
+                PickVideoCard(
+                    modifier = Modifier.padding(16.dp)
+                ) {
                     videoPickerLauncher.launch("video/*")
                 }
             }
             is CreateVideoUiState.NeedsPermissions -> {
-                PermissionCard {
+                PermissionCard(
+                    modifier = Modifier.padding(16.dp)
+                ) {
                     permissionLauncher.launch(
                         (uiState as CreateVideoUiState.NeedsPermissions)
                             .permissions.toTypedArray()
@@ -78,13 +83,15 @@ fun CreateVideoScreen(
                 }
             }
             is CreateVideoUiState.PermissionsDenied -> {
-                PermissionDeniedCard()
+                PermissionDeniedCard(
+                    modifier = Modifier.padding(16.dp)
+                )
             }
             is CreateVideoUiState.VideoSelected -> {
-                VideoSelectedCard(
+                VideoPreviewScreen(
                     videoDetails = (uiState as CreateVideoUiState.VideoSelected).videoDetails,
-                    onPickAgain = {
-                        videoPickerLauncher.launch("video/*")
+                    onBack = {
+                        viewModel.resetState()
                     }
                 )
             }
@@ -93,7 +100,8 @@ fun CreateVideoScreen(
                     message = (uiState as CreateVideoUiState.Error).message,
                     onRetry = {
                         videoPickerLauncher.launch("video/*")
-                    }
+                    },
+                    modifier = Modifier.padding(16.dp)
                 )
             }
         }
@@ -101,9 +109,12 @@ fun CreateVideoScreen(
 }
 
 @Composable
-private fun PickVideoCard(onPickVideo: () -> Unit) {
+private fun PickVideoCard(
+    modifier: Modifier = Modifier,
+    onPickVideo: () -> Unit
+) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(200.dp),
         shape = RoundedCornerShape(16.dp),
@@ -162,9 +173,12 @@ private fun PickVideoCard(onPickVideo: () -> Unit) {
 }
 
 @Composable
-private fun PermissionCard(onRequestPermission: () -> Unit) {
+private fun PermissionCard(
+    modifier: Modifier = Modifier,
+    onRequestPermission: () -> Unit
+) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(200.dp),
         shape = RoundedCornerShape(16.dp),
@@ -223,9 +237,11 @@ private fun PermissionCard(onRequestPermission: () -> Unit) {
 }
 
 @Composable
-private fun PermissionDeniedCard() {
+private fun PermissionDeniedCard(
+    modifier: Modifier = Modifier
+) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(200.dp),
         shape = RoundedCornerShape(16.dp),
@@ -269,91 +285,13 @@ private fun PermissionDeniedCard() {
 }
 
 @Composable
-private fun VideoSelectedCard(
-    videoDetails: VideoDetails,
-    onPickAgain: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = EditzColors.Surface
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.VideoFile,
-                contentDescription = "Video Selected",
-                modifier = Modifier.size(48.dp),
-                tint = EditzColors.Purple
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = videoDetails.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = EditzColors.TextPrimary,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = "Duration: ${formatDuration(videoDetails.duration)}\nResolution: ${videoDetails.resolution}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = EditzColors.TextSecondary,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = onPickAgain,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = EditzColors.Surface,
-                        contentColor = EditzColors.Purple
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Pick Another")
-                }
-                
-                Button(
-                    onClick = { /* TODO: Navigate to editor */ },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = EditzColors.Purple
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "Start Editing",
-                        color = Color.White
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun ErrorCard(
     message: String,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(200.dp),
         shape = RoundedCornerShape(16.dp),
