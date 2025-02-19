@@ -42,11 +42,14 @@ class CreateVideoViewModel @Inject constructor(
 
     fun onVideoSelected(context: Context, uri: Uri) {
         viewModelScope.launch {
+            println("DEBUG: Starting video selection for uri: $uri")
             _uiState.value = CreateVideoUiState.Loading
             
             videoPickerHandler.getVideoDetails(context, uri)?.let { videoDetails ->
+                println("DEBUG: Video details loaded successfully: $videoDetails")
                 _uiState.value = CreateVideoUiState.VideoSelected(videoDetails)
             } ?: run {
+                println("DEBUG: Failed to load video details for uri: $uri")
                 _uiState.value = CreateVideoUiState.Error("Failed to load video details")
             }
         }

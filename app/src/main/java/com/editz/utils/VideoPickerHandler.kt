@@ -11,6 +11,7 @@ class VideoPickerHandler @Inject constructor() {
     
     fun getVideoDetails(context: Context, uri: Uri): VideoDetails? {
         try {
+            println("DEBUG: Starting to get video details for uri: $uri")
             // First try to get basic info
             context.contentResolver.query(
                 uri,
@@ -21,6 +22,7 @@ class VideoPickerHandler @Inject constructor() {
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val name = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)) ?: "Unknown"
+                    println("DEBUG: Got video name: $name")
                     
                     // Now try to get media details
                     val mediaMetadataRetriever = android.media.MediaMetadataRetriever().apply {
@@ -30,8 +32,11 @@ class VideoPickerHandler @Inject constructor() {
                     val duration = try {
                         mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
                     } catch (e: Exception) {
+                        println("DEBUG: Error getting duration: ${e.message}")
                         0L
                     }
+                    
+                    println("DEBUG: Extracted metadata - Duration: $duration")
                     
                     val width = try {
                         mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
@@ -65,11 +70,14 @@ class VideoPickerHandler @Inject constructor() {
                         height = height,
                         size = size,
                         mimeType = mimeType
-                    )
+                    ).also {
+                        println("DEBUG: Created VideoDetails: $it")
+                    }
                 }
             }
             return null
         } catch (e: Exception) {
+            println("DEBUG: Error in getVideoDetails: ${e.message}")
             e.printStackTrace()
             return null
         }
