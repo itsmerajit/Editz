@@ -23,19 +23,38 @@ fun VideoFilters(
 ) {
     Column(
         modifier = modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(
-            text = "Filters",
-            style = MaterialTheme.typography.titleMedium,
-            color = EditzColors.TextPrimary
-        )
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Filters",
+                style = MaterialTheme.typography.titleMedium,
+                color = EditzColors.TextPrimary
+            )
+            
+            if (selectedFilter != VideoFilter.ORIGINAL) {
+                TextButton(
+                    onClick = { onFilterSelected(VideoFilter.ORIGINAL) }
+                ) {
+                    Text(
+                        text = "Reset",
+                        color = EditzColors.Purple
+                    )
+                }
+            }
+        }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         
+        // Filter Grid
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             items(VideoFilter.values()) { filter ->
@@ -43,6 +62,41 @@ fun VideoFilters(
                     filter = filter,
                     isSelected = filter == selectedFilter,
                     onClick = { onFilterSelected(filter) }
+                )
+            }
+        }
+        
+        if (selectedFilter != VideoFilter.ORIGINAL) {
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Filter Intensity Slider
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Intensity",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EditzColors.TextSecondary
+                    )
+                    Text(
+                        text = "${(selectedFilter.intensity * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EditzColors.TextSecondary
+                    )
+                }
+                
+                Slider(
+                    value = selectedFilter.intensity,
+                    onValueChange = { /* TODO: Implement intensity change */ },
+                    valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = EditzColors.Purple,
+                        activeTrackColor = EditzColors.Purple,
+                        inactiveTrackColor = EditzColors.Surface
+                    )
                 )
             }
         }
@@ -58,31 +112,39 @@ private fun FilterItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .width(100.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(
                 if (isSelected) EditzColors.Purple.copy(alpha = 0.1f)
                 else EditzColors.Surface
             )
             .clickable(onClick = onClick)
             .padding(8.dp)
-            .width(80.dp)
     ) {
+        // Filter Preview
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(80.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(EditzColors.Surface)
         ) {
-            // Placeholder for filter preview
-            // TODO: Add actual filter preview
+            // TODO: Add actual filter preview with thumbnail
         }
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         
         Text(
             text = filter.displayName,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) EditzColors.Purple else EditzColors.TextSecondary
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isSelected) EditzColors.Purple else EditzColors.TextPrimary
         )
+        
+        if (filter != VideoFilter.ORIGINAL) {
+            Text(
+                text = "${(filter.intensity * 100).toInt()}% strength",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isSelected) EditzColors.Purple.copy(alpha = 0.7f) else EditzColors.TextSecondary
+            )
+        }
     }
 } 

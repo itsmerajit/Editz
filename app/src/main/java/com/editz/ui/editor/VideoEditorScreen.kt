@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import com.editz.ui.editor.model.VideoEffect
 import com.editz.ui.editor.components.VideoTrimmer
 import com.editz.ui.editor.components.VideoAdvancedControls
 import com.editz.ui.editor.model.VideoTool
+import androidx.compose.foundation.clickable
 
 @Composable
 fun VideoEditorScreen(
@@ -47,173 +49,224 @@ fun VideoEditorScreen(
     val isProcessing by viewModel.isProcessing.collectAsState()
     val processingError by viewModel.processingError.collectAsState()
     
+    var selectedTool by remember { mutableStateOf<VideoTool?>(null) }
+
     LaunchedEffect(Unit) {
         viewModel.initializeEditor(videoDetails)
     }
 
-    var selectedTool by remember { mutableStateOf<VideoTool?>(null) }
-
-    if (isProcessing) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                CircularProgressIndicator(
-                    color = EditzColors.Purple
-                )
-                Text(
-                    text = "Processing video...",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = EditzColors.TextPrimary
-                )
-            }
-        }
-    }
-    
-    processingError?.let { error ->
-        AlertDialog(
-            onDismissRequest = { viewModel.clearError() },
-            title = { Text("Error") },
-            text = { Text(error) },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.clearError() }
-                ) {
-                    Text("OK")
-                }
-            }
-        )
-    }
-
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(EditzColors.Background)
     ) {
-        // Top Bar with back button
-        TopAppBar(
-            title = { Text("Edit Video") },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
-                    )
-                }
-            },
-            actions = {
-                IconButton(
-                    onClick = { selectedTool = VideoTool.EXPORT }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Save,
-                        contentDescription = "Export"
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = EditzColors.Surface,
-                titleContentColor = EditzColors.TextPrimary,
-                navigationIconContentColor = EditzColors.TextPrimary
-            )
-        )
-
-        // Video Preview
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+        // Main Content
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
-            VideoPreviewScreen(
-                videoDetails = videoDetails,
-                volume = 1f,
-                speed = 1f,
-                startMs = trimStartMs,
-                endMs = trimEndMs,
-                onBack = onBack,
-                onSeek = viewModel::updatePosition
+            // Professional Top Bar
+            TopAppBar(
+                title = { 
+                    Text(
+                        text = "Edit Video",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+                    // Export action
+                    IconButton(
+                        onClick = viewModel::saveChanges
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Save,
+                            contentDescription = "Export"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = EditzColors.Surface,
+                    titleContentColor = EditzColors.TextPrimary
+                )
             )
+
+            // Video Preview Section with aspect ratio
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.4f)
+                    .background(EditzColors.Background)
+            ) {
+                VideoPreviewScreen(
+                    videoDetails = videoDetails,
+                    startMs = trimStartMs,
+                    endMs = trimEndMs,
+                    onSeek = viewModel::updatePosition
+                )
+            }
+
+            // Timeline/Trimmer with professional look
+            VideoTrimmer(
+                duration = videoDetails.duration,
+                currentPosition = currentPosition,
+                trimStartMs = trimStartMs,
+                trimEndMs = trimEndMs,
+                onStartMsChange = viewModel::updateTrimStart,
+                onEndMsChange = viewModel::updateTrimEnd,
+                onCurrentPositionChange = viewModel::updatePosition,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .padding(horizontal = 16.dp)
+            )
+
+            // Quick Action Tools
+            QuickActionTools(
+                selectedTool = selectedTool,
+                onToolSelected = { tool -> selectedTool = tool }
+            )
+
+            // Editing Workspace
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.6f)
+                    .background(EditzColors.Surface)
+            ) {
+                when (selectedTool) {
+                    VideoTool.FILTER -> VideoFilters(
+                        selectedFilter = currentFilter,
+                        onFilterSelected = viewModel::updateFilter
+                    )
+                    VideoTool.EFFECT -> VideoEffects(
+                        selectedEffect = effectState.effect,
+                        onEffectSelected = viewModel::updateEffect
+                    )
+                    VideoTool.ADJUST -> VideoAdjustments(
+                        adjustments = adjustments,
+                        onAdjustmentsChanged = viewModel::updateAdjustments
+                    )
+                    else -> {
+                        // Show welcome message or tips
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Select a tool to start editing",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = EditzColors.TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
         }
 
-        // Video Trimmer
-        VideoTrimmer(
-            duration = videoDetails.duration,
-            currentPosition = currentPosition,
-            trimStartMs = trimStartMs,
-            trimEndMs = trimEndMs,
-            onStartMsChange = viewModel::updateTrimStart,
-            onEndMsChange = viewModel::updateTrimEnd,
-            onCurrentPositionChange = viewModel::updatePosition
+        // Processing Overlay
+        if (isProcessing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(EditzColors.Background.copy(alpha = 0.9f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(color = EditzColors.Purple)
+                    Text(
+                        text = "Processing video...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = EditzColors.TextPrimary
+                    )
+                }
+            }
+        }
+
+        // Error Dialog
+        processingError?.let { error ->
+            AlertDialog(
+                onDismissRequest = { viewModel.clearError() },
+                title = { Text("Error") },
+                text = { Text(error) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.clearError() }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionTools(
+    selectedTool: VideoTool?,
+    onToolSelected: (VideoTool) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .background(EditzColors.Surface)
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        VideoTool.values().forEach { tool ->
+            QuickActionButton(
+                tool = tool,
+                isSelected = tool == selectedTool,
+                onClick = { onToolSelected(tool) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionButton(
+    tool: VideoTool,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+    ) {
+        val icon = when (tool) {
+            VideoTool.TRIM -> Icons.Default.ContentCut
+            VideoTool.FILTER -> Icons.Default.FilterAlt
+            VideoTool.EFFECT -> Icons.Default.AutoFixHigh
+            VideoTool.ADJUST -> Icons.Default.Tune
+            VideoTool.EXPORT -> Icons.Default.Save
+        }
+
+        Icon(
+            imageVector = icon,
+            contentDescription = tool.name,
+            tint = if (isSelected) EditzColors.Purple else EditzColors.TextPrimary,
+            modifier = Modifier.size(24.dp)
         )
         
-        // Advanced Controls
-        VideoAdvancedControls(
-            selectedTool = selectedTool,
-            onToolSelected = { tool -> selectedTool = tool },
-            modifier = Modifier.fillMaxWidth()
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        Text(
+            text = tool.name,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSelected) EditzColors.Purple else EditzColors.TextSecondary
         )
-
-        // Editing Tools
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Filters Section
-            VideoFilters(
-                selectedFilter = currentFilter,
-                onFilterSelected = viewModel::updateFilter
-            )
-            
-            Divider(color = EditzColors.Surface)
-            
-            // Effects Section
-            VideoEffects(
-                selectedEffect = effectState.effect,
-                onEffectSelected = viewModel::updateEffect
-            )
-            
-            Divider(color = EditzColors.Surface)
-            
-            // Adjustments Section
-            VideoAdjustments(
-                adjustments = adjustments,
-                onAdjustmentsChanged = viewModel::updateAdjustments
-            )
-            
-            Divider(color = EditzColors.Surface)
-        }
-
-        // Bottom Actions
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Button(
-                onClick = viewModel::resetEdits,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = EditzColors.Error
-                )
-            ) {
-                Text("Reset")
-            }
-            
-            Button(
-                onClick = viewModel::saveChanges,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = EditzColors.Success
-                )
-            ) {
-                Text("Save Changes")
-            }
-        }
     }
 }
 
