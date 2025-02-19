@@ -23,6 +23,8 @@ import com.editz.utils.VideoDetails
 @Composable
 fun VideoPreviewScreen(
     videoDetails: VideoDetails,
+    volume: Float = 1f,
+    speed: Float = 1f,
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -39,6 +41,15 @@ fun VideoPreviewScreen(
                 }
             })
         }
+    }
+
+    // Update volume and speed when they change
+    LaunchedEffect(volume) {
+        exoPlayer.volume = volume
+    }
+
+    LaunchedEffect(speed) {
+        exoPlayer.setPlaybackSpeed(speed)
     }
     
     DisposableEffect(Unit) {
