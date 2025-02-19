@@ -2,8 +2,8 @@
 
 ## Project Details
 - **Created Date**: 2025-02-19
-- **Last Updated**: 2025-02-19 19:33:56 +05:30
-- **Version**: 0.1.4 (Development)
+- **Last Updated**: 2025-02-19 19:53:29 +05:30
+- **Version**: 0.1.5 (Development)
 - **Status**: Active Development
 - **Project Type**: Mobile Video Editing Application
 
@@ -12,6 +12,40 @@ Editz is a revolutionary mobile application designed to democratize video editin
 
 ## Mission Statement
 To empower creators by providing an accessible, powerful, and user-friendly video editing platform that transforms mobile devices into professional content creation studios.
+
+## Prerequisites
+- Android 8.0 (Oreo) or higher
+- Minimum 4GB RAM
+- 200MB free storage space
+- Latest version of Google Play Services
+
+## Installation
+
+### Option 1: Google Play Store
+1. Open Google Play Store on your Android device
+2. Search for "Editz"
+3. Tap "Install"
+
+### Option 2: Direct APK Download
+1. Visit [Editz Official Website](https://editz.com/download)
+2. Download the latest APK
+3. Enable "Unknown Sources" in device settings
+4. Tap the downloaded APK to install
+
+### Option 3: Build from Source
+```bash
+# Clone the repository
+git clone https://github.com/rajitsaha/Editz.git
+
+# Navigate to project directory
+cd Editz
+
+# Build the project
+./gradlew assembleDebug
+
+# Install on connected device
+./gradlew installDebug
+```
 
 ## Technical Specifications
 - **Platform**: Android
@@ -44,6 +78,27 @@ To empower creators by providing an accessible, powerful, and user-friendly vide
 - Multi-track Video Editing
 - Advanced Transition Effects
 - Audio Mixing Capabilities
+
+## Getting Started
+
+### For Users
+1. Download the app
+2. Create an account
+3. Start your video editing journey!
+
+### For Developers
+1. Fork the repository
+2. Clone your fork
+3. Open in Android Studio
+4. Run `./gradlew build` to verify setup
+5. Create a new branch for your feature
+
+## Contributing
+1. Read our [Contribution Guidelines](CONTRIBUTING.md)
+2. Fork the repository
+3. Create a new branch
+4. Make your changes
+5. Submit a Pull Request
 
 ## Developer
 - **Name**: Rajit Saha
@@ -138,8 +193,19 @@ To empower creators by providing an accessible, powerful, and user-friendly vide
 - Encouraging community contributions
 - Transparent development process
 
+## License
+[MIT License](LICENSE)
+
+## Support
+- [Community Forums](https://forums.editz.com)
+- [Discord Channel](https://discord.gg/editz)
+- Email: support@editz.com
+
 ## Acknowledgments
 - Android Developer Community
 - Jetpack Compose Team
 - Kotlin Language Developers
 - Open-Source Contributors
+
+## Disclaimer
+Editz is an independent project and is not affiliated with any major tech company. Development is ongoing, and features may change.

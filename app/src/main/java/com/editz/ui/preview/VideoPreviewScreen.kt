@@ -16,9 +16,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.AspectRatioFrameLayout
 import com.editz.theme.EditzColors
 import com.editz.utils.VideoDetails
+import kotlinx.coroutines.delay
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun VideoPreviewScreen(
@@ -28,57 +32,147 @@ fun VideoPreviewScreen(
     startMs: Long = 0L,
     endMs: Long = 0L,
     onBack: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: VideoPreviewViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
+    var currentPosition by remember { mutableStateOf(0L) }
     
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(videoDetails.uri))
-            prepare()
-            addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlayingNow: Boolean) {
-                    isPlaying = isPlayingNow
-                }
+        ExoPlayer.Builder(context)
+            .setHandleAudioBecomingNoisy(true)
+            .setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        DefaultLoadControl.DEFAULT_MIN_BUFFER_MS / 2,  // Reduce minimum buffer
+                        DefaultLoadControl.DEFAULT_MAX_BUFFER_MS / 2,  // Reduce maximum buffer
+                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS / 2,
+                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS / 2
+                    )
+                    .setPrioritizeTimeOverSizeThresholds(true)  // Prioritize time over size
+                    .build()
+            )
+            .build().apply {
+                // Video configuration
+                videoScalingMode = androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+                
+                // Create media item with proper configuration
+                val mediaItem = MediaItem.Builder()
+                    .setUri(videoDetails.uri)
+                    .setMimeType("video/*")
+                    .build()
+                
+                // Clear any existing items
+                clearMediaItems()
+                setMediaItem(mediaItem)
+                
+                // Prepare but don't play automatically
+                prepare()
+                playWhenReady = false
+                
+                // Set audio attributes
+                setAudioAttributes(
+                    androidx.media3.common.AudioAttributes.Builder()
+                        .setContentType(androidx.media3.common.C.CONTENT_TYPE_MOVIE)
+                        .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                        .build(),
+                    true
+                )
+                
+                // Set repeat mode
+                repeatMode = Player.REPEAT_MODE_OFF
 
-                override fun onPositionDiscontinuity(
-                    oldPosition: Player.PositionInfo,
-                    newPosition: Player.PositionInfo,
-                    reason: Int
-                ) {
-                    // Loop within trim points
-                    if (endMs > 0 && newPosition.positionMs >= endMs) {
-                        seekTo(startMs)
+                addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                        isPlaying = isPlayingNow
+                    }
+
+                    override fun onPositionDiscontinuity(
+                        oldPosition: Player.PositionInfo,
+                        newPosition: Player.PositionInfo,
+                        reason: Int
+                    ) {
+                        if (endMs > 0 && newPosition.positionMs >= endMs) {
+                            pause()
+                            seekTo(startMs)
+                        }
+                    }
+
+                    override fun onPlaybackStateChanged(state: Int) {
+                        when (state) {
+                            Player.STATE_READY -> {
+                                seekTo(if (startMs > 0) startMs else 0L)
+                            }
+                            Player.STATE_ENDED -> {
+                                seekTo(startMs)
+                                pause()
+                            }
+                            Player.STATE_BUFFERING -> {
+                                // Reset position if needed
+                                if (currentPosition >= endMs) {
+                                    seekTo(startMs)
+                                }
+                            }
+                            Player.STATE_IDLE -> {
+                                // Try to recover
+                                prepare()
+                            }
+                        }
+                    }
+                })
+            }
+    }
+
+    // Update player parameters when they change
+    LaunchedEffect(volume, speed, startMs, endMs) {
+        exoPlayer.apply {
+            this.volume = volume
+            setPlaybackSpeed(speed)
+            
+            // Handle trim points
+            if (startMs >= 0) {
+                val targetPosition = if (currentPosition < startMs || currentPosition > endMs) {
+                    startMs
+                } else {
+                    currentPosition
+                }
+                seekTo(targetPosition)
+            }
+        }
+    }
+
+    // Update current position periodically with error handling
+    LaunchedEffect(Unit) {
+        while (true) {
+            try {
+                delay(50) // Reduce update frequency further to 20fps
+                if (isPlaying && !exoPlayer.isLoading) {
+                    val position = exoPlayer.currentPosition
+                    if (position >= 0) {
+                        currentPosition = position
+                        
+                        // Check if we need to loop
+                        if (endMs > 0 && position >= endMs) {
+                            exoPlayer.seekTo(startMs)
+                        }
                     }
                 }
-            })
-        }
-    }
-
-    // Update volume and speed when they change
-    LaunchedEffect(volume) {
-        exoPlayer.volume = volume
-    }
-
-    LaunchedEffect(speed) {
-        exoPlayer.setPlaybackSpeed(speed)
-    }
-
-    // Update trim points
-    LaunchedEffect(startMs, endMs) {
-        if (startMs >= 0) {
-            exoPlayer.seekTo(startMs)
-        }
-        if (endMs > 0) {
-            // Set repeat mode to loop within trim points
-            exoPlayer.repeatMode = Player.REPEAT_MODE_ONE
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
     
     DisposableEffect(Unit) {
         onDispose {
-            exoPlayer.release()
+            try {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+                exoPlayer.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -88,7 +182,7 @@ fun VideoPreviewScreen(
             .background(EditzColors.Background)
             .padding(16.dp)
     ) {
-        // Video Preview
+        // Video Preview with surface management
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -99,9 +193,20 @@ fun VideoPreviewScreen(
                     PlayerView(context).apply {
                         player = exoPlayer
                         useController = false
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                        
+                        // Surface configuration
+                        setKeepContentOnPlayerReset(true)
+                        useArtwork = false
+                        
+                        // Video surface properties
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                update = { view ->
+                    view.player = exoPlayer
+                }
             )
         }
         
@@ -128,7 +233,7 @@ fun VideoPreviewScreen(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Basic Controls
+        // Basic Controls with error handling
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -136,13 +241,17 @@ fun VideoPreviewScreen(
         ) {
             IconButton(
                 onClick = {
-                    if (isPlaying) {
-                        exoPlayer.pause()
-                    } else {
-                        if (endMs > 0 && exoPlayer.currentPosition >= endMs) {
-                            exoPlayer.seekTo(startMs)
+                    try {
+                        if (isPlaying) {
+                            exoPlayer.pause()
+                        } else {
+                            if (currentPosition >= endMs) {
+                                exoPlayer.seekTo(startMs)
+                            }
+                            exoPlayer.play()
                         }
-                        exoPlayer.play()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
             ) {
@@ -157,11 +266,20 @@ fun VideoPreviewScreen(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Seek Bar
+        // Seek Bar with error handling
         Slider(
-            value = exoPlayer.currentPosition.toFloat(),
+            value = currentPosition.toFloat(),
             onValueChange = { position ->
-                exoPlayer.seekTo(position.toLong().coerceIn(startMs, if (endMs > 0) endMs else videoDetails.duration))
+                try {
+                    val newPosition = position.toLong().coerceIn(
+                        startMs,
+                        if (endMs > 0) endMs else videoDetails.duration
+                    )
+                    currentPosition = newPosition
+                    exoPlayer.seekTo(newPosition)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             },
             valueRange = startMs.toFloat()..if (endMs > 0) endMs.toFloat() else videoDetails.duration.toFloat(),
             colors = SliderDefaults.colors(
