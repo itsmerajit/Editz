@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +41,11 @@ fun VideoPreviewScreen(
     var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableStateOf(0L) }
     
+    // Use viewModel to handle video state
+    LaunchedEffect(Unit) {
+        viewModel.initializeVideo(videoDetails)
+    }
+
     val exoPlayer = remember {
         ExoPlayer.Builder(context)
             .setHandleAudioBecomingNoisy(true)
@@ -172,6 +178,18 @@ fun VideoPreviewScreen(
             .background(EditzColors.Background)
             .padding(16.dp)
     ) {
+        // Add back button
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = EditzColors.TextPrimary
+            )
+        }
+
         // Video Preview with surface management
         Box(
             modifier = Modifier
@@ -185,9 +203,9 @@ fun VideoPreviewScreen(
                         useController = false
                         setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                         
-                        // Optimize surface handling
-                        setKeepContentOnPlayerReset(true)
-                        useArtwork = false
+                        // Remove deprecated useArtwork
+                        setShowPreviousButton(false)
+                        setShowNextButton(false)
                         
                         // Set optimal surface properties
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
