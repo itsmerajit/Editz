@@ -43,7 +43,8 @@ class HomeActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen() {
-    var currentScreen by remember { mutableStateOf("home") }
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    var selectedVideo by remember { mutableStateOf<VideoDetails?>(null) }
     
     Box(
         modifier = Modifier
@@ -52,24 +53,39 @@ fun MainScreen() {
             .systemBarsPadding()
     ) {
         when (currentScreen) {
-            "home" -> HomeScreen()
-            "create" -> CreateVideoScreen(
-                onPickVideo = {
-                    // TODO: Implement video picking
+            Screen.Home -> HomeScreen()
+            Screen.Create -> CreateVideoScreen(
+                onNavigateToEditor = { videoDetails ->
+                    selectedVideo = videoDetails
+                    currentScreen = Screen.Editor
                 }
             )
+            Screen.Editor -> {
+                selectedVideo?.let { video ->
+                    VideoEditorScreen(
+                        videoDetails = video,
+                        onBack = {
+                            selectedVideo = null
+                            currentScreen = Screen.Create
+                        }
+                    )
+                }
+            }
+            else -> HomeScreen()
         }
         
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
-            BottomNavigation(
-                currentScreen = currentScreen,
-                onScreenChange = { screen ->
-                    currentScreen = screen
-                }
-            )
+        if (currentScreen != Screen.Editor) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                BottomNavigation(
+                    currentScreen = currentScreen.name.lowercase(),
+                    onScreenChange = { screen ->
+                        currentScreen = Screen.valueOf(screen.uppercase())
+                    }
+                )
+            }
         }
     }
 }
@@ -91,4 +107,13 @@ fun HomeScreen(
         FolderSection()
         ProjectsList()
     }
+}
+
+enum class Screen {
+    Home,
+    Create,
+    Editor,
+    Pro,
+    Files,
+    Profile
 } 

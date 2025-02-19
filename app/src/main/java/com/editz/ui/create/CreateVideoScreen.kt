@@ -25,6 +25,7 @@ import com.editz.utils.VideoDetails
 @Composable
 fun CreateVideoScreen(
     onPickVideo: () -> Unit = {},
+    onNavigateToEditor: (VideoDetails) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: CreateVideoViewModel = hiltViewModel()
 ) {
@@ -88,12 +89,9 @@ fun CreateVideoScreen(
                 )
             }
             is CreateVideoUiState.VideoSelected -> {
-                VideoPreviewScreen(
-                    videoDetails = (uiState as CreateVideoUiState.VideoSelected).videoDetails,
-                    onBack = {
-                        viewModel.resetState()
-                    }
-                )
+                LaunchedEffect(Unit) {
+                    onNavigateToEditor((uiState as CreateVideoUiState.VideoSelected).videoDetails)
+                }
             }
             is CreateVideoUiState.Error -> {
                 ErrorCard(
