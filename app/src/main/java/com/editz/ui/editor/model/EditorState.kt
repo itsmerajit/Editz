@@ -22,9 +22,12 @@ enum class VideoEffect {
 }
 
 enum class VideoTool {
+    STITCH,
     TRIM,
-    FILTER,
-    EFFECT,
-    ADJUST,
-    EXPORT
+    MASK,
+    OPACITY,
+    REPLACE,
+    VOICE_EFFECT,
+    DUPLICATE,
+    ROTATE
 } 

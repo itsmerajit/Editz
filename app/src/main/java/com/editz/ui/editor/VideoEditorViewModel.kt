@@ -124,9 +124,9 @@ class VideoEditorViewModel @Inject constructor(
                     trimStartMs = _trimStartMs.value,
                     trimEndMs = _trimEndMs.value,
                     filter = _currentFilter.value,
-                    speed = 1f,
-                    volume = 1f,
-                    rotation = 0
+                    speed = _speed.value,
+                    volume = _volume.value,
+                    rotation = _rotation.value
                 ).onSuccess { file ->
                     // TODO: Save file to media store
                 }.onFailure { error ->

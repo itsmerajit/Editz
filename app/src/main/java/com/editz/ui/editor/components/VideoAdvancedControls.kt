@@ -57,16 +57,17 @@ private fun ToolItem(
             .padding(8.dp)
             .width(80.dp)
     ) {
-        val icon = when (tool) {
-            VideoTool.TRIM -> Icons.Default.ContentCut
-            VideoTool.FILTER -> Icons.Default.FilterAlt
-            VideoTool.EFFECT -> Icons.Default.AutoFixHigh
-            VideoTool.ADJUST -> Icons.Default.Tune
-            VideoTool.EXPORT -> Icons.Default.Save
-        }
-        
         Icon(
-            imageVector = icon,
+            imageVector = when (tool) {
+                VideoTool.STITCH -> Icons.Default.Link
+                VideoTool.TRIM -> Icons.Default.ContentCut
+                VideoTool.MASK -> Icons.Default.Masks
+                VideoTool.OPACITY -> Icons.Default.Opacity
+                VideoTool.REPLACE -> Icons.Default.SwapHoriz
+                VideoTool.VOICE_EFFECT -> Icons.Default.RecordVoiceOver
+                VideoTool.DUPLICATE -> Icons.Default.ContentCopy
+                VideoTool.ROTATE -> Icons.Default.Rotate90DegreesCcw
+            },
             contentDescription = tool.name,
             tint = if (isSelected) EditzColors.Purple else EditzColors.TextPrimary
         )
@@ -74,7 +75,9 @@ private fun ToolItem(
         Spacer(modifier = Modifier.height(4.dp))
         
         Text(
-            text = tool.name,
+            text = tool.name.replace("_", " ").lowercase()
+                .split(" ")
+                .joinToString(" ") { it.capitalize() },
             style = MaterialTheme.typography.bodySmall,
             color = if (isSelected) EditzColors.Purple else EditzColors.TextSecondary
         )

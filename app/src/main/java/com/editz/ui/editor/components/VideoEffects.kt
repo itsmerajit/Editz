@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.editz.theme.EditzColors
 import com.editz.ui.editor.model.VideoEffect
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun VideoEffects(
@@ -24,18 +25,18 @@ fun VideoEffects(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(vertical = 8.dp)
     ) {
         Text(
             text = "Effects",
             style = MaterialTheme.typography.titleMedium,
-            color = EditzColors.TextPrimary
+            color = Color.White,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
-        
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             items(VideoEffect.values()) { effect ->
@@ -58,31 +59,48 @@ private fun EffectItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .width(80.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(
-                if (isSelected) EditzColors.Purple.copy(alpha = 0.1f)
-                else EditzColors.Surface
+                if (isSelected) EditzColors.Purple.copy(alpha = 0.2f)
+                else Color.Transparent
             )
             .clickable(onClick = onClick)
             .padding(8.dp)
-            .width(80.dp)
     ) {
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(EditzColors.Surface)
+                .background(Color(0xFF1A1A1A))
         ) {
-            // Placeholder for effect preview
-            // TODO: Add actual effect preview
+            // Effect preview placeholder
+            when (effect) {
+                VideoEffect.NONE -> {
+                    Text(
+                        text = "None",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                    )
+                }
+                else -> {
+                    // TODO: Add effect preview
+                }
+            }
         }
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = effect.name,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) EditzColors.Purple else EditzColors.TextSecondary
+            text = effect.name.lowercase().capitalize(),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSelected) EditzColors.Purple else Color.White
         )
     }
+}
+
+private fun String.capitalize(): String {
+    return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 } 
