@@ -23,6 +23,7 @@ import com.editz.theme.EditzColors
 import com.editz.utils.VideoDetails
 import kotlinx.coroutines.delay
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.view.View
 
 @Composable
 fun VideoPreviewScreen(
@@ -45,16 +46,24 @@ fun VideoPreviewScreen(
             .setLoadControl(
                 DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                        DefaultLoadControl.DEFAULT_MIN_BUFFER_MS / 2,  // Reduce minimum buffer
-                        DefaultLoadControl.DEFAULT_MAX_BUFFER_MS / 2,  // Reduce maximum buffer
-                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS / 2,
-                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS / 2
+                        500,  // Minimum buffer
+                        1500, // Maximum buffer
+                        500,  // Buffer for playback
+                        500   // Buffer for playback after rebuffer
                     )
-                    .setPrioritizeTimeOverSizeThresholds(true)  // Prioritize time over size
+                    .setBackBuffer(500, true)
+                    .setPrioritizeTimeOverSizeThresholds(true)
                     .build()
             )
+            .setVideoScalingMode(androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT)
+            .setReleaseTimeoutMs(2000)
             .build().apply {
-                // Video configuration
+                // Clear any existing items and memory
+                stop()
+                clearMediaItems()
+                clearVideoSurface()
+                
+                // Set video scaling mode for better performance
                 videoScalingMode = androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT
                 
                 // Create media item with proper configuration
@@ -63,59 +72,38 @@ fun VideoPreviewScreen(
                     .setMimeType("video/*")
                     .build()
                 
-                // Clear any existing items
-                clearMediaItems()
                 setMediaItem(mediaItem)
-                
-                // Prepare but don't play automatically
                 prepare()
+                
+                // Optimize playback settings
                 playWhenReady = false
-                
-                // Set audio attributes
-                setAudioAttributes(
-                    androidx.media3.common.AudioAttributes.Builder()
-                        .setContentType(androidx.media3.common.C.CONTENT_TYPE_MOVIE)
-                        .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                        .build(),
-                    true
-                )
-                
-                // Set repeat mode
                 repeatMode = Player.REPEAT_MODE_OFF
-
+                
+                // Add optimized listener
                 addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlayingNow: Boolean) {
                         isPlaying = isPlayingNow
                     }
 
-                    override fun onPositionDiscontinuity(
-                        oldPosition: Player.PositionInfo,
-                        newPosition: Player.PositionInfo,
-                        reason: Int
-                    ) {
-                        if (endMs > 0 && newPosition.positionMs >= endMs) {
-                            pause()
-                            seekTo(startMs)
-                        }
-                    }
-
                     override fun onPlaybackStateChanged(state: Int) {
                         when (state) {
                             Player.STATE_READY -> {
-                                seekTo(if (startMs > 0) startMs else 0L)
+                                if (startMs > 0) {
+                                    seekTo(startMs)
+                                }
                             }
                             Player.STATE_ENDED -> {
                                 seekTo(startMs)
                                 pause()
                             }
                             Player.STATE_BUFFERING -> {
-                                // Reset position if needed
+                                // Only seek if really needed
                                 if (currentPosition >= endMs) {
                                     seekTo(startMs)
                                 }
                             }
                             Player.STATE_IDLE -> {
-                                // Try to recover
+                                // Minimal recovery
                                 prepare()
                             }
                         }
@@ -142,18 +130,19 @@ fun VideoPreviewScreen(
         }
     }
 
-    // Update current position periodically with error handling
+    // Optimize position updates
     LaunchedEffect(Unit) {
         while (true) {
             try {
-                delay(50) // Reduce update frequency further to 20fps
+                delay(50) // Update at 20fps for smoother UI
                 if (isPlaying && !exoPlayer.isLoading) {
                     val position = exoPlayer.currentPosition
                     if (position >= 0) {
                         currentPosition = position
                         
-                        // Check if we need to loop
-                        if (endMs > 0 && position >= endMs) {
+                        // Optimize trim point handling
+                        if (endMs > 0 && position >= endMs - 50) { // Add small buffer
+                            exoPlayer.pause()
                             exoPlayer.seekTo(startMs)
                         }
                     }
@@ -168,6 +157,7 @@ fun VideoPreviewScreen(
         onDispose {
             try {
                 exoPlayer.stop()
+                exoPlayer.clearVideoSurface()
                 exoPlayer.clearMediaItems()
                 exoPlayer.release()
             } catch (e: Exception) {
@@ -193,19 +183,54 @@ fun VideoPreviewScreen(
                     PlayerView(context).apply {
                         player = exoPlayer
                         useController = false
-                        setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                         
-                        // Surface configuration
+                        // Optimize surface handling
                         setKeepContentOnPlayerReset(true)
                         useArtwork = false
                         
-                        // Video surface properties
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        // Set optimal surface properties
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        
+                        // Set player
+                        this.player = exoPlayer
+                        
+                        // Initial surface setup
+                        videoSurfaceView?.let { surfaceView ->
+                            if (surfaceView is android.view.SurfaceView) {
+                                exoPlayer.setVideoSurfaceView(surfaceView)
+                            }
+                        }
+                        
+                        // Add cleanup listener
+                        addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                            override fun onViewAttachedToWindow(v: View) {
+                                if (v is PlayerView) {
+                                    v.videoSurfaceView?.let { surfaceView ->
+                                        if (surfaceView is android.view.SurfaceView) {
+                                            exoPlayer.setVideoSurfaceView(surfaceView)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            override fun onViewDetachedFromWindow(v: View) {
+                                exoPlayer.clearVideoSurface()
+                            }
+                        })
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
                 update = { view ->
                     view.player = exoPlayer
+                    view.keepScreenOn = isPlaying
+                    
+                    // Ensure surface is set after updates
+                    view.videoSurfaceView?.let { surfaceView ->
+                        if (surfaceView is android.view.SurfaceView) {
+                            exoPlayer.setVideoSurfaceView(surfaceView)
+                        }
+                    }
                 }
             )
         }

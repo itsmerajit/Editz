@@ -2,82 +2,119 @@
 
 ## Project Details
 - **Created Date**: 2025-02-19
-- **Last Updated**: 2025-02-19 19:53:29 +05:30
-- **Version**: 0.1.5 (Development)
+- **Last Updated**: 2025-02-19 20:13:37 +05:30
+- **Version**: 0.1.6 (Development)
 - **Status**: Active Development
 - **Project Type**: Mobile Video Editing Application
 
-## Project Overview
+## 🎬 Project Overview
 Editz is a revolutionary mobile application designed to democratize video editing, providing intuitive, powerful tools for content creators of all skill levels. Built with cutting-edge Android development technologies, Editz aims to simplify the video editing process while maintaining professional-grade output.
 
-## Mission Statement
+## 🚀 Mission Statement
 To empower creators by providing an accessible, powerful, and user-friendly video editing platform that transforms mobile devices into professional content creation studios.
 
-## Prerequisites
-- Android 8.0 (Oreo) or higher
-- Minimum 4GB RAM
-- 200MB free storage space
+## 🛠 Prerequisites
+### Hardware Requirements
+- **Minimum Device**: Android 8.0 (Oreo)
+- **Recommended Device**: Android 11 or higher
+- **RAM**: 
+  - Minimum: 4GB
+  - Recommended: 6GB+
+- **Storage**: 
+  - Minimum: 200MB free space
+  - Recommended: 2GB free space for project files
+
+### Software Requirements
 - Latest version of Google Play Services
+- Stable internet connection for initial setup
+- Google Account (optional, but recommended)
 
-## Installation
+### Compatibility
+- Supports 95% of Android devices running 8.0+
+- Optimized for modern Android versions
+- Works best on devices with GPU acceleration
 
-### Option 1: Google Play Store
-1. Open Google Play Store on your Android device
+## 📦 Installation Methods
+
+### 1. Google Play Store (Recommended)
+```
+1. Open Google Play Store
 2. Search for "Editz"
 3. Tap "Install"
+4. Wait for download and installation
+5. Open app and start creating!
+```
 
-### Option 2: Direct APK Download
-1. Visit [Editz Official Website](https://editz.com/download)
-2. Download the latest APK
-3. Enable "Unknown Sources" in device settings
-4. Tap the downloaded APK to install
+### 2. Direct APK Download
+```
+1. Visit official website: https://editz.com/download
+2. Select your device architecture (ARM, x86)
+3. Download latest APK
+4. Enable "Unknown Sources" in device settings
+5. Tap downloaded APK
+6. Follow installation prompts
+```
 
-### Option 3: Build from Source
+### 3. Build from Source
 ```bash
-# Clone the repository
+# Prerequisites: 
+# - Git
+# - Android Studio
+# - Java JDK 17+
+
+# Clone repository
 git clone https://github.com/rajitsaha/Editz.git
 
-# Navigate to project directory
+# Navigate to project
 cd Editz
 
-# Build the project
+# Build debug APK
 ./gradlew assembleDebug
 
 # Install on connected device
 ./gradlew installDebug
 ```
 
-## Technical Specifications
+## 🔍 Troubleshooting Installation
+- If installation fails, check device compatibility
+- Ensure sufficient storage space
+- Update Google Play Services
+- Check device security settings
+- Contact support if persistent issues occur
+
+## 🌟 Key Features
+- 📱 Dynamic Bottom Navigation
+- 🎥 Intuitive Video Selection Screen
+- 📊 Comprehensive Home Dashboard
+- 🧩 Modular Project Management
+- 🔀 Advanced Screen Switching
+- 🎨 Responsive, Modern UI
+- ⏱ Real-time Video Preview
+- 📹 Multi-track Video Editing
+- 🌈 Advanced Transition Effects
+- 🔊 Professional Audio Mixing
+
+## 🔧 Technical Specifications
 - **Platform**: Android
-- **Language**: Kotlin
+- **Primary Language**: Kotlin
 - **UI Framework**: Jetpack Compose
 - **Architecture**: MVVM with State Management
 - **Dependency Injection**: Hilt
 - **Minimum SDK**: 26 (Android 8.0)
 - **Target SDK**: 34 (Android 14)
 - **Programming Paradigm**: Functional Reactive Programming
-- **Code Quality**: Static Analysis with ktlint and detekt
+- **Code Quality Tools**: 
+  - ktlint
+  - detekt
+  - Android Lint
 
-## Development Environment
-- **Gradle Version**: 8.2.0
+## 💻 Development Environment
+- **Build Tool**: Gradle 8.2.0
 - **Kotlin Version**: 1.9.0
 - **Android Gradle Plugin**: 8.2.0
-- **Development IDE**: Android Studio Hedgehog
+- **IDE**: Android Studio Hedgehog
 - **Version Control**: Git
-- **Continuous Integration**: GitHub Actions
-
-## Key Features
-- Dynamic Bottom Navigation
-- Intuitive Video Selection Screen
-- Comprehensive Home Dashboard
-- Modular Project Management
-- Advanced Screen Switching Mechanism
-- Modular UI Components
-- Responsive Design
-- Real-time Video Preview
-- Multi-track Video Editing
-- Advanced Transition Effects
-- Audio Mixing Capabilities
+- **CI/CD**: GitHub Actions
 
 ## Getting Started
 
