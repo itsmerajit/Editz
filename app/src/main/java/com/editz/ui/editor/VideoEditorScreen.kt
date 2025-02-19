@@ -18,6 +18,7 @@ import com.editz.theme.EditzColors
 import com.editz.utils.VideoDetails
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.editz.ui.preview.VideoPreviewScreen
+import com.editz.ui.editor.components.VideoTrimSlider
 
 @Composable
 fun VideoEditorScreen(
@@ -74,7 +75,9 @@ fun VideoEditorScreen(
                     VideoPreviewScreen(
                         videoDetails = editingState.videoDetails,
                         volume = editingState.volume,
-                        speed = editingState.speed
+                        speed = editingState.speed,
+                        startMs = editingState.trimStartMs,
+                        endMs = editingState.trimEndMs
                     )
                 }
 
@@ -182,8 +185,23 @@ private fun TrimControls(
     Column {
         Text("Trim Video", color = EditzColors.TextPrimary)
         Spacer(modifier = Modifier.height(8.dp))
-        // TODO: Implement trim slider
-        Text("Trim Controls Coming Soon", color = EditzColors.TextSecondary)
+        VideoTrimSlider(
+            duration = duration,
+            startMs = startMs,
+            endMs = endMs.takeIf { it > 0 } ?: duration,
+            onStartMsChange = { newStartMs ->
+                onTrimPointsChanged(newStartMs, endMs.takeIf { it > 0 } ?: duration)
+            },
+            onEndMsChange = { newEndMs ->
+                onTrimPointsChanged(startMs, newEndMs)
+            }
+        )
+        Text(
+            text = "Duration: ${formatDuration(endMs - startMs)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = EditzColors.TextSecondary,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 
@@ -247,6 +265,18 @@ private fun FilterControls(
         Spacer(modifier = Modifier.height(8.dp))
         // TODO: Implement filter options
         Text("Filters Coming Soon", color = EditzColors.TextSecondary)
+    }
+}
+
+private fun formatDuration(durationMs: Long): String {
+    val seconds = (durationMs / 1000) % 60
+    val minutes = (durationMs / (1000 * 60)) % 60
+    val hours = durationMs / (1000 * 60 * 60)
+    
+    return if (hours > 0) {
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
     }
 }
 
