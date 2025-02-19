@@ -14,7 +14,9 @@ import androidx.core.view.WindowCompat
 import com.editz.theme.EditzColors
 import com.editz.theme.EditzTheme
 import com.editz.ui.create.CreateVideoScreen
+import com.editz.ui.editor.VideoEditorScreen
 import com.editz.ui.home.components.*
+import com.editz.utils.VideoDetails
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -43,8 +45,8 @@ class HomeActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen() {
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
-    var selectedVideo by remember { mutableStateOf<VideoDetails?>(null) }
+    var currentScreen by remember { mutableStateOf(Screen.Home) }
+    var selectedVideo: VideoDetails? by remember { mutableStateOf(null) }
     
     Box(
         modifier = Modifier
@@ -81,8 +83,15 @@ fun MainScreen() {
                 Spacer(modifier = Modifier.weight(1f))
                 BottomNavigation(
                     currentScreen = currentScreen.name.lowercase(),
-                    onScreenChange = { screen ->
-                        currentScreen = Screen.valueOf(screen.uppercase())
+                    onScreenChange = { screenName ->
+                        currentScreen = when (screenName.lowercase()) {
+                            "home" -> Screen.Home
+                            "create" -> Screen.Create
+                            "pro" -> Screen.Pro
+                            "files" -> Screen.Files
+                            "profile" -> Screen.Profile
+                            else -> Screen.Home
+                        }
                     }
                 )
             }
