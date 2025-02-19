@@ -1,67 +1,90 @@
 package com.editz.ui.editor
 
 import androidx.lifecycle.ViewModel
-import com.editz.utils.VideoDetails
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.editz.utils.VideoDetails
+import com.editz.ui.editor.components.VideoFilter
+import com.editz.ui.editor.components.VideoAdjustments
+import com.editz.ui.editor.components.VideoEffect
 import javax.inject.Inject
+
+data class EffectState(
+    val effect: VideoEffect = VideoEffect.NONE,
+    val intensity: Float = 1f
+)
 
 @HiltViewModel
 class VideoEditorViewModel @Inject constructor() : ViewModel() {
-    private val _uiState = MutableStateFlow<VideoEditorUiState>(VideoEditorUiState.Initial)
-    val uiState: StateFlow<VideoEditorUiState> = _uiState.asStateFlow()
+    private val _videoDetails = MutableStateFlow<VideoDetails?>(null)
+    val videoDetails: StateFlow<VideoDetails?> = _videoDetails.asStateFlow()
+
+    private val _currentFilter = MutableStateFlow(VideoFilter.NONE)
+    val currentFilter: StateFlow<VideoFilter> = _currentFilter.asStateFlow()
+
+    private val _adjustments = MutableStateFlow(VideoAdjustments())
+    val adjustments: StateFlow<VideoAdjustments> = _adjustments.asStateFlow()
+
+    private val _effectState = MutableStateFlow(EffectState())
+    val effectState: StateFlow<EffectState> = _effectState.asStateFlow()
 
     private var currentVolume: Float = 1f
     private var currentSpeed: Float = 1f
-    private var currentFilter: String? = null
     private var trimStartMs: Long = 0L
     private var trimEndMs: Long = 0L
 
-    fun initializeEditor(videoDetails: VideoDetails) {
-        _uiState.value = VideoEditorUiState.Editing(
-            videoDetails = videoDetails,
-            volume = currentVolume,
-            speed = currentSpeed,
-            filter = currentFilter,
-            trimStartMs = trimStartMs,
-            trimEndMs = trimEndMs
-        )
+    fun initializeEditor(details: VideoDetails) {
+        _videoDetails.value = details
+        _currentFilter.value = VideoFilter.NONE
+        _adjustments.value = VideoAdjustments()
+        _effectState.value = EffectState()
+        currentVolume = 1f
+        currentSpeed = 1f
+        trimStartMs = 0L
+        trimEndMs = details.duration
     }
 
     fun updateVolume(volume: Float) {
         currentVolume = volume
-        updateState()
     }
 
     fun updateSpeed(speed: Float) {
         currentSpeed = speed
-        updateState()
     }
 
-    fun updateFilter(filter: String?) {
-        currentFilter = filter
-        updateState()
+    fun updateFilter(filter: VideoFilter) {
+        _currentFilter.value = filter
     }
 
     fun updateTrimPoints(startMs: Long, endMs: Long) {
         trimStartMs = startMs
         trimEndMs = endMs
-        updateState()
     }
 
-    private fun updateState() {
-        val currentState = uiState.value
-        if (currentState is VideoEditorUiState.Editing) {
-            _uiState.value = currentState.copy(
-                volume = currentVolume,
-                speed = currentSpeed,
-                filter = currentFilter,
-                trimStartMs = trimStartMs,
-                trimEndMs = trimEndMs
-            )
-        }
+    fun updateEffect(effect: VideoEffect) {
+        _effectState.value = _effectState.value.copy(effect = effect)
+    }
+
+    fun updateEffectIntensity(intensity: Float) {
+        _effectState.value = _effectState.value.copy(intensity = intensity)
+    }
+
+    fun updateAdjustments(adjustments: VideoAdjustments) {
+        _adjustments.value = adjustments
+    }
+
+    fun resetEdits() {
+        _currentFilter.value = VideoFilter.NONE
+        _adjustments.value = VideoAdjustments()
+        _effectState.value = EffectState()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        _videoDetails.value = null
+        resetEdits()
     }
 }
 

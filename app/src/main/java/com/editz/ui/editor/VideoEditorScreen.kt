@@ -4,9 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,18 +22,24 @@ import com.editz.utils.VideoDetails
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.editz.ui.preview.VideoPreviewScreen
 import com.editz.ui.editor.components.VideoTrimSlider
+import com.editz.ui.editor.components.VideoFilters
+import com.editz.ui.editor.components.VideoAdjustments
+import com.editz.ui.editor.components.VideoFilter
+import com.editz.ui.editor.components.VideoEffects
+import com.editz.ui.editor.components.VideoEffect
 
 @Composable
 fun VideoEditorScreen(
     videoDetails: VideoDetails,
-    onBack: () -> Unit = {},
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: VideoEditorViewModel = hiltViewModel()
 ) {
-    var selectedTool by remember { mutableStateOf<EditorTool?>(null) }
-    val uiState by viewModel.uiState.collectAsState()
-
-    LaunchedEffect(videoDetails) {
+    val currentFilter by viewModel.currentFilter.collectAsState()
+    val adjustments by viewModel.adjustments.collectAsState()
+    val effectState by viewModel.effectState.collectAsState()
+    
+    LaunchedEffect(Unit) {
         viewModel.initializeEditor(videoDetails)
     }
 
@@ -39,101 +48,81 @@ fun VideoEditorScreen(
             .fillMaxSize()
             .background(EditzColors.Background)
     ) {
-        // Top Bar
+        // Top Bar with back button
         TopAppBar(
-            title = { Text("Edit Video", color = EditzColors.TextPrimary) },
+            title = { Text("Edit Video") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = EditzColors.TextPrimary
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back"
                     )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = EditzColors.Surface
+                containerColor = EditzColors.Surface,
+                titleContentColor = EditzColors.TextPrimary,
+                navigationIconContentColor = EditzColors.TextPrimary
             )
         )
 
-        when (uiState) {
-            is VideoEditorUiState.Initial -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+        // Video Preview
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f/9f)
+        ) {
+            VideoPreviewScreen(
+                videoDetails = videoDetails,
+                volume = 1f,
+                speed = 1f,
+                startMs = 0,
+                endMs = videoDetails.duration
+            )
+        }
+
+        // Editing Tools
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Filters Section
+            VideoFilters(
+                selectedFilter = currentFilter,
+                onFilterSelected = viewModel::updateFilter
+            )
+            
+            Divider(color = EditzColors.Surface)
+            
+            // Effects Section
+            VideoEffects(
+                selectedEffect = effectState.effect,
+                onEffectSelected = viewModel::updateEffect
+            )
+            
+            Divider(color = EditzColors.Surface)
+            
+            // Adjustments Section
+            VideoAdjustments(
+                adjustments = adjustments,
+                onAdjustmentsChanged = viewModel::updateAdjustments
+            )
+            
+            Divider(color = EditzColors.Surface)
+            
+            // Reset Button
+            TextButton(
+                onClick = viewModel::resetEdits,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Reset All",
                     color = EditzColors.Purple
                 )
-            }
-            is VideoEditorUiState.Editing -> {
-                val editingState = uiState as VideoEditorUiState.Editing
-                
-                // Video Preview
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    VideoPreviewScreen(
-                        videoDetails = editingState.videoDetails,
-                        volume = editingState.volume,
-                        speed = editingState.speed,
-                        startMs = editingState.trimStartMs,
-                        endMs = editingState.trimEndMs
-                    )
-                }
-
-                // Tools Row
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(editorTools) { tool ->
-                        EditorToolItem(
-                            tool = tool,
-                            isSelected = selectedTool == tool,
-                            onClick = { selectedTool = tool }
-                        )
-                    }
-                }
-
-                // Tool Options
-                selectedTool?.let { tool ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = EditzColors.Surface
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            when (tool) {
-                                EditorTool.Trim -> TrimControls(
-                                    duration = editingState.videoDetails.duration,
-                                    startMs = editingState.trimStartMs,
-                                    endMs = editingState.trimEndMs,
-                                    onTrimPointsChanged = viewModel::updateTrimPoints
-                                )
-                                EditorTool.Volume -> VolumeControls(
-                                    volume = editingState.volume,
-                                    onVolumeChanged = viewModel::updateVolume
-                                )
-                                EditorTool.Speed -> SpeedControls(
-                                    speed = editingState.speed,
-                                    onSpeedChanged = viewModel::updateSpeed
-                                )
-                                EditorTool.Filter -> FilterControls(
-                                    currentFilter = editingState.filter,
-                                    onFilterChanged = viewModel::updateFilter
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
     }
