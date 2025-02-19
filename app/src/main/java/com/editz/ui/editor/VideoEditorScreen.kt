@@ -18,15 +18,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.editz.theme.EditzColors
-import com.editz.utils.VideoDetails
+import com.editz.data.VideoDetails
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.editz.ui.preview.VideoPreviewScreen
 import com.editz.ui.editor.components.VideoTrimSlider
 import com.editz.ui.editor.components.VideoFilters
 import com.editz.ui.editor.components.VideoAdjustments
-import com.editz.ui.editor.components.VideoFilter
+import com.editz.ui.editor.model.VideoFilter
 import com.editz.ui.editor.components.VideoEffects
-import com.editz.ui.editor.components.VideoEffect
+import com.editz.ui.editor.model.VideoEffect
+import com.editz.ui.editor.components.VideoTrimmer
+import com.editz.ui.editor.components.VideoAdvancedControls
+import com.editz.ui.editor.model.VideoTool
 
 @Composable
 fun VideoEditorScreen(
@@ -38,9 +41,52 @@ fun VideoEditorScreen(
     val currentFilter by viewModel.currentFilter.collectAsState()
     val adjustments by viewModel.adjustments.collectAsState()
     val effectState by viewModel.effectState.collectAsState()
+    val currentPosition by viewModel.currentPosition.collectAsState()
+    val trimStartMs by viewModel.trimStartMs.collectAsState()
+    val trimEndMs by viewModel.trimEndMs.collectAsState()
+    val isProcessing by viewModel.isProcessing.collectAsState()
+    val processingError by viewModel.processingError.collectAsState()
     
     LaunchedEffect(Unit) {
         viewModel.initializeEditor(videoDetails)
+    }
+
+    var selectedTool by remember { mutableStateOf<VideoTool?>(null) }
+
+    if (isProcessing) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator(
+                    color = EditzColors.Purple
+                )
+                Text(
+                    text = "Processing video...",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = EditzColors.TextPrimary
+                )
+            }
+        }
+    }
+    
+    processingError?.let { error ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            title = { Text("Error") },
+            text = { Text(error) },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.clearError() }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
     }
 
     Column(
@@ -59,6 +105,16 @@ fun VideoEditorScreen(
                     )
                 }
             },
+            actions = {
+                IconButton(
+                    onClick = { selectedTool = VideoTool.EXPORT }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Save,
+                        contentDescription = "Export"
+                    )
+                }
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = EditzColors.Surface,
                 titleContentColor = EditzColors.TextPrimary,
@@ -69,17 +125,37 @@ fun VideoEditorScreen(
         // Video Preview
         Box(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
-                .aspectRatio(16f/9f)
         ) {
             VideoPreviewScreen(
                 videoDetails = videoDetails,
                 volume = 1f,
                 speed = 1f,
-                startMs = 0,
-                endMs = videoDetails.duration
+                startMs = trimStartMs,
+                endMs = trimEndMs,
+                onBack = onBack,
+                onSeek = viewModel::updatePosition
             )
         }
+
+        // Video Trimmer
+        VideoTrimmer(
+            duration = videoDetails.duration,
+            currentPosition = currentPosition,
+            trimStartMs = trimStartMs,
+            trimEndMs = trimEndMs,
+            onStartMsChange = viewModel::updateTrimStart,
+            onEndMsChange = viewModel::updateTrimEnd,
+            onCurrentPositionChange = viewModel::updatePosition
+        )
+        
+        // Advanced Controls
+        VideoAdvancedControls(
+            selectedTool = selectedTool,
+            onToolSelected = { tool -> selectedTool = tool },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         // Editing Tools
         Column(
@@ -111,18 +187,31 @@ fun VideoEditorScreen(
             )
             
             Divider(color = EditzColors.Surface)
-            
-            // Reset Button
-            TextButton(
+        }
+
+        // Bottom Actions
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Button(
                 onClick = viewModel::resetEdits,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Reset All",
-                    color = EditzColors.Purple
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = EditzColors.Error
                 )
+            ) {
+                Text("Reset")
+            }
+            
+            Button(
+                onClick = viewModel::saveChanges,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = EditzColors.Success
+                )
+            ) {
+                Text("Save Changes")
             }
         }
     }

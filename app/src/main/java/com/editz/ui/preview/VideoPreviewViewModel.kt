@@ -5,7 +5,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.editz.utils.VideoDetails
+import com.editz.data.VideoDetails
 import javax.inject.Inject
 
 @HiltViewModel

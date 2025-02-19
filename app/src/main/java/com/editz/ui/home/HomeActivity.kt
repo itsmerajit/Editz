@@ -16,7 +16,7 @@ import com.editz.theme.EditzTheme
 import com.editz.ui.create.CreateVideoScreen
 import com.editz.ui.editor.VideoEditorScreen
 import com.editz.ui.home.components.*
-import com.editz.utils.VideoDetails
+import com.editz.data.VideoDetails
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

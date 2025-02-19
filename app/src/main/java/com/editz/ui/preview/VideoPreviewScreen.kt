@@ -21,10 +21,12 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.editz.theme.EditzColors
-import com.editz.utils.VideoDetails
+import com.editz.data.VideoDetails
 import kotlinx.coroutines.delay
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.view.View
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.widget.FrameLayout
 
 @Composable
 fun VideoPreviewScreen(
@@ -34,6 +36,7 @@ fun VideoPreviewScreen(
     startMs: Long = 0L,
     endMs: Long = 0L,
     onBack: () -> Unit = {},
+    onSeek: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: VideoPreviewViewModel = hiltViewModel()
 ) {
@@ -114,6 +117,14 @@ fun VideoPreviewScreen(
                             }
                         }
                     }
+
+                    override fun onPositionDiscontinuity(
+                        oldPosition: Player.PositionInfo,
+                        newPosition: Player.PositionInfo,
+                        reason: Int
+                    ) {
+                        onSeek(newPosition.positionMs)
+                    }
                 })
             }
     }
@@ -172,6 +183,14 @@ fun VideoPreviewScreen(
         }
     }
 
+    LaunchedEffect(startMs, endMs) {
+        if (endMs > startMs) {
+            exoPlayer.setMediaItem(MediaItem.fromUri(videoDetails.uri), startMs)
+            exoPlayer.seekTo(startMs)
+            exoPlayer.prepare()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -200,8 +219,8 @@ fun VideoPreviewScreen(
                 factory = { context ->
                     PlayerView(context).apply {
                         player = exoPlayer
-                        useController = false
-                        setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                        useController = true
+                        layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
                         
                         // Remove deprecated useArtwork
                         setShowPreviousButton(false)
@@ -269,7 +288,7 @@ fun VideoPreviewScreen(
         )
         
         Text(
-            text = "Resolution: ${videoDetails.resolution}",
+            text = "Resolution: ${videoDetails.width}x${videoDetails.height}",
             style = MaterialTheme.typography.bodyMedium,
             color = EditzColors.TextSecondary
         )

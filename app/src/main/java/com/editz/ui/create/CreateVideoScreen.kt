@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.editz.theme.EditzColors
 import com.editz.ui.preview.VideoPreviewScreen
-import com.editz.utils.VideoDetails
+import com.editz.data.VideoDetails
 
 @Composable
 fun CreateVideoScreen(

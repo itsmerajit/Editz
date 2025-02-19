@@ -11,19 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.editz.theme.EditzColors
-
-enum class VideoFilter(val displayName: String, val intensity: Float = 1f) {
-    NONE("Original"),
-    VINTAGE("Vintage", 0.7f),
-    DRAMATIC("Dramatic", 1.2f),
-    COOL("Cool", 0.8f),
-    WARM("Warm", 0.8f),
-    VIBRANT("Vibrant", 1.3f),
-    MUTED("Muted", 0.6f)
-}
+import com.editz.ui.editor.model.VideoFilter
 
 @Composable
 fun VideoFilters(
@@ -73,9 +63,9 @@ private fun FilterItem(
                 if (isSelected) EditzColors.Purple.copy(alpha = 0.1f)
                 else EditzColors.Surface
             )
+            .clickable(onClick = onClick)
             .padding(8.dp)
             .width(80.dp)
-            .clickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier

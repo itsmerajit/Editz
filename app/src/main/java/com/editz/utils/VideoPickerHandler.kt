@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import com.editz.data.VideoDetails
 import javax.inject.Inject
 
 class VideoPickerHandler @Inject constructor() {
@@ -33,15 +34,15 @@ class VideoPickerHandler @Inject constructor() {
                     }
                     
                     val width = try {
-                        mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH) ?: "0"
+                        mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
                     } catch (e: Exception) {
-                        "0"
+                        0
                     }
                     
                     val height = try {
-                        mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT) ?: "0"
+                        mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
                     } catch (e: Exception) {
-                        "0"
+                        0
                     }
                     
                     val size = try {
@@ -50,28 +51,27 @@ class VideoPickerHandler @Inject constructor() {
                         0L
                     }
                     
-                    mediaMetadataRetriever.release()
+                    val mimeType = try {
+                        context.contentResolver.getType(uri) ?: "video/*"
+                    } catch (e: Exception) {
+                        "video/*"
+                    }
                     
                     return VideoDetails(
                         uri = uri,
                         name = name,
                         duration = duration,
+                        width = width,
+                        height = height,
                         size = size,
-                        resolution = "${width}x${height}"
+                        mimeType = mimeType
                     )
                 }
             }
+            return null
         } catch (e: Exception) {
             e.printStackTrace()
+            return null
         }
-        return null
     }
-}
-
-data class VideoDetails(
-    val uri: Uri,
-    val name: String,
-    val duration: Long,
-    val size: Long,
-    val resolution: String
-) 
+} 

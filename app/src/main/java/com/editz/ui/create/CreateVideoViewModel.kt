@@ -5,7 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.editz.utils.PermissionHandler
-import com.editz.utils.VideoDetails
+import com.editz.data.VideoDetails
 import com.editz.utils.VideoPickerHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -7,12 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.editz.theme.EditzColors
-
-data class VideoAdjustments(
-    val brightness: Float = 0f,
-    val contrast: Float = 0f,
-    val saturation: Float = 0f
-)
+import com.editz.ui.editor.model.VideoAdjustments
 
 @Composable
 fun VideoAdjustments(
@@ -36,9 +31,7 @@ fun VideoAdjustments(
         AdjustmentSlider(
             label = "Brightness",
             value = adjustments.brightness,
-            onValueChange = { 
-                onAdjustmentsChanged(adjustments.copy(brightness = it))
-            }
+            onValueChange = { onAdjustmentsChanged(adjustments.copy(brightness = it)) }
         )
         
         Spacer(modifier = Modifier.height(8.dp))
@@ -46,9 +39,7 @@ fun VideoAdjustments(
         AdjustmentSlider(
             label = "Contrast",
             value = adjustments.contrast,
-            onValueChange = { 
-                onAdjustmentsChanged(adjustments.copy(contrast = it))
-            }
+            onValueChange = { onAdjustmentsChanged(adjustments.copy(contrast = it)) }
         )
         
         Spacer(modifier = Modifier.height(8.dp))
@@ -56,9 +47,15 @@ fun VideoAdjustments(
         AdjustmentSlider(
             label = "Saturation",
             value = adjustments.saturation,
-            onValueChange = { 
-                onAdjustmentsChanged(adjustments.copy(saturation = it))
-            }
+            onValueChange = { onAdjustmentsChanged(adjustments.copy(saturation = it)) }
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        AdjustmentSlider(
+            label = "Warmth",
+            value = adjustments.warmth,
+            onValueChange = { onAdjustmentsChanged(adjustments.copy(warmth = it)) }
         )
     }
 }

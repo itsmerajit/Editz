@@ -8,4 +8,6 @@ object EditzColors {
     val Surface = Color(0xFF1F1F1F)
     val TextPrimary = Color(0xFFFFFFFF)
     val TextSecondary = Color(0xFF999999)
+    val Error = Color(0xFFDC2626)
+    val Success = Color(0xFF22C55E)
 } 
