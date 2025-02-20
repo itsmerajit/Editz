@@ -261,6 +261,7 @@ fun VideoEditorScreen(
                                     VideoTool.VOICE_EFFECT -> { /* Handle voice */ }
                                     VideoTool.DUPLICATE -> { /* Handle duplicate */ }
                                     VideoTool.ROTATE -> { /* Handle rotate */ }
+                                    VideoTool.SPEED -> { /* Handle speed */ }
                                     else -> {}
                                 }
                             }
@@ -295,8 +296,19 @@ private fun ToolButton(
                 VideoTool.VOICE_EFFECT -> Icons.Default.RecordVoiceOver
                 VideoTool.DUPLICATE -> Icons.Default.ContentCopy
                 VideoTool.ROTATE -> Icons.Default.Rotate90DegreesCcw
+                VideoTool.SPEED -> Icons.Default.Speed
             },
-            contentDescription = tool.name,
+            contentDescription = when (tool) {
+                VideoTool.STITCH -> "Stitch videos together"
+                VideoTool.TRIM -> "Trim video length"
+                VideoTool.MASK -> "Apply video mask"
+                VideoTool.OPACITY -> "Adjust video opacity"
+                VideoTool.REPLACE -> "Replace video segment"
+                VideoTool.VOICE_EFFECT -> "Add voice effects"
+                VideoTool.DUPLICATE -> "Duplicate video segment"
+                VideoTool.ROTATE -> "Rotate video"
+                VideoTool.SPEED -> "Adjust playback speed"
+            },
             tint = if (isSelected) EditzColors.Purple else Color.White,
             modifier = Modifier.size(24.dp)
         )
@@ -313,6 +325,7 @@ private fun ToolButton(
                 VideoTool.VOICE_EFFECT -> "Voice"
                 VideoTool.DUPLICATE -> "Duplicate"
                 VideoTool.ROTATE -> "Rotate"
+                VideoTool.SPEED -> "Speed"
             },
             style = MaterialTheme.typography.labelSmall,
             color = if (isSelected) EditzColors.Purple else Color.White,

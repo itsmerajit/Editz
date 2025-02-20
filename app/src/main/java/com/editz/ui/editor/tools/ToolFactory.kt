@@ -3,6 +3,12 @@ package com.editz.ui.editor.tools
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.editz.ui.editor.model.VideoTool
+import com.editz.ui.editor.tools.speed.SpeedTool
+import com.editz.ui.editor.tools.rotate.RotateTool
+import com.editz.ui.editor.tools.stitch.StitchTool
+import com.editz.ui.editor.tools.mask.MaskTool
+import com.editz.ui.editor.tools.opacity.OpacityTool
+import com.editz.ui.editor.tools.voice.VoiceEffectTool
 
 object ToolFactory {
     fun createTool(tool: VideoTool): VideoToolControls {
@@ -15,6 +21,7 @@ object ToolFactory {
             VideoTool.VOICE_EFFECT -> VoiceEffectTool()
             VideoTool.DUPLICATE -> DuplicateTool()
             VideoTool.ROTATE -> RotateTool()
+            VideoTool.SPEED -> SpeedTool()
         }
     }
 }
@@ -23,7 +30,7 @@ object ToolFactory {
 class TrimTool : VideoToolControls {
     @Composable
     override fun Content(modifier: Modifier, onValueChanged: () -> Unit) {
-        // Using existing VideoTrimmer component
+        // TODO: Implement Trim tool UI
     }
 }
 
@@ -38,12 +45,5 @@ class DuplicateTool : VideoToolControls {
     @Composable
     override fun Content(modifier: Modifier, onValueChanged: () -> Unit) {
         // TODO: Implement Duplicate tool UI
-    }
-}
-
-class RotateTool : VideoToolControls {
-    @Composable
-    override fun Content(modifier: Modifier, onValueChanged: () -> Unit) {
-        // TODO: Implement Rotate tool UI
     }
 } 

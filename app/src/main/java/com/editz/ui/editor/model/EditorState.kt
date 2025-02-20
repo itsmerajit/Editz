@@ -19,15 +19,4 @@ enum class VideoEffect {
     GRAIN,
     GLITCH,
     PIXELATE
-}
-
-enum class VideoTool {
-    STITCH,
-    TRIM,
-    MASK,
-    OPACITY,
-    REPLACE,
-    VOICE_EFFECT,
-    DUPLICATE,
-    ROTATE
 } 
