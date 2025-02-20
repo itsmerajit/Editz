@@ -9,6 +9,7 @@ import com.editz.ui.editor.model.VideoAdjustments
 import com.editz.ui.editor.model.EffectState
 import com.editz.ui.editor.model.VideoEffect
 import com.editz.utils.VideoProcessor
+import com.editz.utils.EditorStateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class VideoEditorViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val videoProcessor: VideoProcessor
+    private val videoProcessor: VideoProcessor,
+    private val editorStateManager: EditorStateManager
 ) : ViewModel() {
     private val _videoDetails = MutableStateFlow<VideoDetails?>(null)
     val videoDetails: StateFlow<VideoDetails?> = _videoDetails.asStateFlow()
@@ -59,44 +61,85 @@ class VideoEditorViewModel @Inject constructor(
     
     fun initializeEditor(videoDetails: VideoDetails) {
         _videoDetails.value = videoDetails
-        _trimStartMs.value = 0L
-        _trimEndMs.value = videoDetails.duration
+        
+        // Load last state if it's the same video
+        val lastState = editorStateManager.getLastEditorState()
+        if (lastState.videoUri == videoDetails.uri) {
+            _trimStartMs.value = lastState.trimStartMs
+            _trimEndMs.value = lastState.trimEndMs
+            _currentPosition.value = lastState.currentPosition
+            _volume.value = lastState.volume
+            _speed.value = lastState.speed
+            _rotation.value = lastState.rotation
+            _adjustments.value = lastState.adjustments
+            _effectState.value = lastState.effectState
+        } else {
+            // Reset to defaults for new video
+            _trimStartMs.value = 0L
+            _trimEndMs.value = videoDetails.duration
+            resetEdits()
+        }
     }
     
     fun updateTrimStart(startMs: Long) {
         _trimStartMs.value = startMs.coerceIn(0L, _trimEndMs.value - MIN_TRIM_DURATION)
+        saveCurrentState()
     }
     
     fun updateTrimEnd(endMs: Long) {
         _trimEndMs.value = endMs.coerceIn(_trimStartMs.value + MIN_TRIM_DURATION, videoDetails.value?.duration ?: 0L)
+        saveCurrentState()
     }
     
     fun updatePosition(position: Long) {
         _currentPosition.value = position
+        saveCurrentState()
     }
     
     fun updateFilter(filter: VideoFilter) {
         _currentFilter.value = filter
+        saveCurrentState()
     }
     
     fun updateEffect(effect: VideoEffect) {
         _effectState.value = _effectState.value.copy(effect = effect)
+        saveCurrentState()
     }
     
     fun updateAdjustments(adjustments: VideoAdjustments) {
         _adjustments.value = adjustments
+        saveCurrentState()
     }
     
     fun updateSpeed(speed: Float) {
         _speed.value = speed.coerceIn(0.25f, 2f)
+        saveCurrentState()
     }
     
     fun updateVolume(volume: Float) {
         _volume.value = volume.coerceIn(0f, 1f)
+        saveCurrentState()
     }
     
     fun updateRotation(degrees: Int) {
         _rotation.value = ((_rotation.value + degrees) % 360 + 360) % 360
+        saveCurrentState()
+    }
+    
+    private fun saveCurrentState() {
+        videoDetails.value?.let { details ->
+            editorStateManager.saveEditorState(
+                videoUri = details.uri,
+                trimStartMs = _trimStartMs.value,
+                trimEndMs = _trimEndMs.value,
+                currentPosition = _currentPosition.value,
+                volume = _volume.value,
+                speed = _speed.value,
+                rotation = _rotation.value,
+                adjustments = _adjustments.value,
+                effectState = _effectState.value
+            )
+        }
     }
     
     fun resetEdits() {
@@ -105,6 +148,10 @@ class VideoEditorViewModel @Inject constructor(
         _effectState.value = EffectState()
         _trimStartMs.value = 0L
         _trimEndMs.value = videoDetails.value?.duration ?: 0L
+        _speed.value = 1f
+        _volume.value = 1f
+        _rotation.value = 0
+        saveCurrentState()
     }
     
     fun saveChanges() {

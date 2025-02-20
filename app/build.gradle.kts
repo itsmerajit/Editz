@@ -165,6 +165,9 @@ dependencies {
     implementation("com.github.junrar:junrar:7.5.5")
     implementation("org.tukaani:xz:1.9")
 
+    // Gson for JSON serialization
+    implementation("com.google.code.gson:gson:2.10.1")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
