@@ -136,14 +136,12 @@ fun VideoEditorScreen(
                     .weight(1f)
             ) {
                 VideoPreviewScreen(
-                    videoDetails = videoDetails,
+                    videoUri = videoDetails.uri,
                     volume = volume,
                     speed = speed,
-                    startMs = trimStartMs,
-                    endMs = trimEndMs,
                     isPlaying = isPlaying,
-                    onPlayPause = { 
-                        isPlaying = !isPlaying
+                    onPlayPause = { playing ->
+                        isPlaying = playing
                     },
                     onSeek = { position ->
                         currentPosition = position

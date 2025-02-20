@@ -28,138 +28,110 @@ import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import androidx.compose.ui.graphics.Color
+import com.editz.ui.editor.tools.trim.VideoTrimmer
 
 @Composable
 fun VideoPreviewScreen(
-    videoDetails: VideoDetails,
+    videoUri: Uri,
     volume: Float = 1f,
     speed: Float = 1f,
-    startMs: Long = 0L,
-    endMs: Long = 0L,
     isPlaying: Boolean = false,
-    onPlayPause: () -> Unit = {},
-    onSeek: (Long) -> Unit = {},
+    onPlayPause: (Boolean) -> Unit,
+    onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var currentPosition by remember { mutableStateOf(0L) }
-    var playerView by remember { mutableStateOf<PlayerView?>(null) }
-    val playerReadyState = remember { mutableStateOf(false) }
-    var isPlayerReady by playerReadyState
-
-    // Create ExoPlayer instance
-    val exoPlayer = remember(context) {
-        ExoPlayer.Builder(context)
-            .setLoadControl(
-                DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(
-                        DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
-                        DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
-                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
-                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
-                    )
-                    .build()
+    var player by remember { mutableStateOf<ExoPlayer?>(null) }
+    var isPlayerReady by remember { mutableStateOf(false) }
+    
+    // Effect to handle play/pause state changes
+    LaunchedEffect(isPlaying, isPlayerReady) {
+        if (isPlayerReady) {
+            player?.playWhenReady = isPlaying
+            android.util.Log.d("VideoPreview", "Setting playWhenReady: $isPlaying")
+        }
+    }
+    
+    // Effect to handle volume changes
+    LaunchedEffect(volume) {
+        player?.volume = volume
+        android.util.Log.d("VideoPreview", "Setting volume: $volume")
+    }
+    
+    // Effect to handle speed changes
+    LaunchedEffect(speed) {
+        player?.setPlaybackSpeed(speed)
+        android.util.Log.d("VideoPreview", "Setting speed: $speed")
+    }
+    
+    DisposableEffect(context) {
+        android.util.Log.d("VideoPreview", "Creating new player")
+        val newPlayer = ExoPlayer.Builder(context)
+            .setLoadControl(DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    32 * 1024, // Min buffer
+                    64 * 1024, // Max buffer
+                    1024, // Buffer for playback
+                    1024 // Buffer for rebuffer
+                )
+                .build()
             )
             .build()
-    }
-
-    // Initialize player with media
-    LaunchedEffect(videoDetails) {
-        with(exoPlayer) {
-            setMediaItem(MediaItem.fromUri(videoDetails.uri))
-            videoScalingMode = androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
-            repeatMode = Player.REPEAT_MODE_OFF
-            playWhenReady = false
-            prepare()
-        }
-    }
-
-    // Set up player listener
-    LaunchedEffect(exoPlayer) {
-        exoPlayer.addListener(object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                when (playbackState) {
+            
+        player = newPlayer
+        
+        // Add player listener
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                when (state) {
                     Player.STATE_READY -> {
-                        playerReadyState.value = true
-                        if (startMs > 0) {
-                            exoPlayer.seekTo(startMs)
-                        }
-                    }
-                    Player.STATE_ENDED -> {
-                        exoPlayer.seekTo(startMs)
-                        exoPlayer.pause()
-                        onPlayPause()
+                        android.util.Log.d("VideoPreview", "Player STATE_READY")
+                        isPlayerReady = true
+                        onSeek(newPlayer.currentPosition)
                     }
                     Player.STATE_BUFFERING -> {
-                        // Keep the ready state true during buffering to prevent interruption
-                        if (isPlayerReady) {
-                            playerReadyState.value = true
-                        }
+                        android.util.Log.d("VideoPreview", "Player STATE_BUFFERING")
+                    }
+                    Player.STATE_ENDED -> {
+                        android.util.Log.d("VideoPreview", "Player STATE_ENDED")
+                        onPlayPause(false)
                     }
                     Player.STATE_IDLE -> {
-                        playerReadyState.value = false
+                        android.util.Log.d("VideoPreview", "Player STATE_IDLE")
                     }
                 }
             }
-        })
-    }
-
-    // Handle play state changes
-    LaunchedEffect(isPlaying) {
-        if (isPlayerReady) {
-            if (isPlaying) {
-                exoPlayer.play()
-            } else {
-                exoPlayer.pause()
+            
+            override fun onIsPlayingChanged(isActuallyPlaying: Boolean) {
+                android.util.Log.d("VideoPreview", "onIsPlayingChanged: $isActuallyPlaying")
+                onPlayPause(isActuallyPlaying)
+            }
+            
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                android.util.Log.e("VideoPreview", "Player error: ${error.message}")
+                error.printStackTrace()
             }
         }
-    }
-
-    // Handle position updates
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(32) // ~30fps
-            if (isPlaying && isPlayerReady) {
-                val position = exoPlayer.currentPosition
-                if (position >= 0) {
-                    currentPosition = position
-                    onSeek(position)
-                    
-                    // Check if we've reached the end position
-                    if (endMs > 0 && position >= endMs) {
-                        exoPlayer.pause()
-                        exoPlayer.seekTo(startMs)
-                        onPlayPause()
-                    }
-                }
-            }
+        
+        newPlayer.apply {
+            addListener(listener)
+            setMediaItem(MediaItem.fromUri(videoUri))
+            android.util.Log.d("VideoPreview", "Setting media URI: $videoUri")
+            prepare()
+            this.volume = volume
+            setPlaybackSpeed(speed)
+            playWhenReady = isPlaying
+            repeatMode = Player.REPEAT_MODE_ALL
         }
-    }
-
-    // Handle volume and speed changes
-    LaunchedEffect(volume, speed) {
-        exoPlayer.setVolume(volume)
-        exoPlayer.setPlaybackSpeed(speed)
-    }
-
-    // Handle start and end position changes
-    LaunchedEffect(startMs, endMs) {
-        if (isPlayerReady) {
-            if (currentPosition < startMs || currentPosition > endMs) {
-                exoPlayer.seekTo(startMs)
-            }
-        }
-    }
-
-    // Cleanup
-    DisposableEffect(Unit) {
+        
         onDispose {
-            exoPlayer.stop()
-            playerView?.player = null
-            exoPlayer.release()
+            android.util.Log.d("VideoPreview", "Disposing player")
+            newPlayer.removeListener(listener)
+            newPlayer.release()
+            player = null
         }
     }
-
+    
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -168,31 +140,19 @@ fun VideoPreviewScreen(
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
-                    player = exoPlayer
+                    this.player = player
                     useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                    
-                    setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    setKeepContentOnPlayerReset(true)
-                    
-                    playerView = this
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    keepScreenOn = true
                 }
             },
             modifier = Modifier.fillMaxSize(),
             update = { view ->
-                view.player = exoPlayer
-                view.keepScreenOn = isPlaying
+                view.player = player
             }
         )
-        
-        if (!isPlayerReady) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = Color.White
-            )
-        }
     }
 }
 
