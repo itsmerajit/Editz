@@ -28,67 +28,92 @@ class VideoProcessor @Inject constructor(
         filter: VideoFilter,
         speed: Float,
         volume: Float,
-        rotation: Int
+        rotation: Int,
+        progressCallback: (Float) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
-            val extractor = MediaExtractor().apply {
-                setDataSource(context, inputUri, null)
-            }
-            
-            val muxer = MediaMuxer(
-                outputFile.absolutePath,
-                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
-            )
-            
-            // Process video track
-            val videoTrackIndex = findTrackIndex(extractor, "video/")
-            val videoFormat = extractor.getTrackFormat(videoTrackIndex)
-            val processedVideoFormat = videoFormat.apply {
-                setInteger(
-                    MediaFormat.KEY_ROTATION,
-                    rotation
+            val extractor = MediaExtractor()
+            try {
+                extractor.setDataSource(context, inputUri, null)
+                
+                // Create output directory if it doesn't exist
+                outputFile.parentFile?.mkdirs()
+                
+                val muxer = MediaMuxer(
+                    outputFile.absolutePath,
+                    MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
                 )
+                
+                // Find and process video track
+                val videoTrackIndex = findTrackIndex(extractor, "video/")
+                if (videoTrackIndex == -1) {
+                    return@withContext Result.failure(IllegalStateException("No video track found"))
+                }
+                
+                val videoFormat = extractor.getTrackFormat(videoTrackIndex)
+                val processedVideoFormat = videoFormat.apply {
+                    setInteger(MediaFormat.KEY_ROTATION, rotation)
+                }
+                
+                val outputVideoTrack = muxer.addTrack(processedVideoFormat)
+                
+                // Find and process audio track if exists
+                val audioTrackIndex = findTrackIndex(extractor, "audio/")
+                val outputAudioTrack = if (audioTrackIndex != -1) {
+                    val audioFormat = extractor.getTrackFormat(audioTrackIndex)
+                    muxer.addTrack(audioFormat)
+                } else {
+                    -1
+                }
+                
+                muxer.start()
+                
+                // Process video frames
+                processTrack(
+                    extractor = extractor,
+                    trackIndex = videoTrackIndex,
+                    muxer = muxer,
+                    outputTrack = outputVideoTrack,
+                    startMs = trimStartMs,
+                    endMs = trimEndMs,
+                    speed = speed,
+                    filter = filter,
+                    progressCallback = { progress -> 
+                        progressCallback(progress * 0.7f) // Video is 70% of progress
+                    }
+                )
+                
+                // Process audio if exists
+                if (audioTrackIndex != -1 && outputAudioTrack != -1) {
+                    processTrack(
+                        extractor = extractor,
+                        trackIndex = audioTrackIndex,
+                        muxer = muxer,
+                        outputTrack = outputAudioTrack,
+                        startMs = trimStartMs,
+                        endMs = trimEndMs,
+                        speed = speed,
+                        volume = volume,
+                        progressCallback = { progress ->
+                            progressCallback(0.7f + (progress * 0.3f)) // Audio is 30% of progress
+                        }
+                    )
+                }
+                
+                muxer.stop()
+                muxer.release()
+                extractor.release()
+                
+                Result.success(outputFile)
+            } catch (e: Exception) {
+                extractor.release()
+                throw e
             }
-            
-            val outputVideoTrack = muxer.addTrack(processedVideoFormat)
-            
-            // Process audio track
-            val audioTrackIndex = findTrackIndex(extractor, "audio/")
-            val audioFormat = extractor.getTrackFormat(audioTrackIndex)
-            val outputAudioTrack = muxer.addTrack(audioFormat)
-            
-            muxer.start()
-            
-            // Process video frames
-            processTrack(
-                extractor = extractor,
-                trackIndex = videoTrackIndex,
-                muxer = muxer,
-                outputTrack = outputVideoTrack,
-                startMs = trimStartMs,
-                endMs = trimEndMs,
-                speed = speed,
-                filter = filter
-            )
-            
-            // Process audio samples
-            processTrack(
-                extractor = extractor,
-                trackIndex = audioTrackIndex,
-                muxer = muxer,
-                outputTrack = outputAudioTrack,
-                startMs = trimStartMs,
-                endMs = trimEndMs,
-                speed = speed,
-                volume = volume
-            )
-            
-            muxer.stop()
-            muxer.release()
-            extractor.release()
-            
-            Result.success(outputFile)
         } catch (e: Exception) {
+            // Clean up output file if it exists
+            if (outputFile.exists()) {
+                outputFile.delete()
+            }
             Result.failure(e)
         }
     }
@@ -100,10 +125,10 @@ class VideoProcessor @Inject constructor(
                 return i
             }
         }
-        throw IllegalArgumentException("Track not found for mime prefix: $mimePrefix")
+        return -1 // Return -1 if track not found
     }
     
-    private fun processTrack(
+    private suspend fun processTrack(
         extractor: MediaExtractor,
         trackIndex: Int,
         muxer: MediaMuxer,
@@ -112,78 +137,61 @@ class VideoProcessor @Inject constructor(
         endMs: Long,
         speed: Float = 1f,
         volume: Float = 1f,
-        filter: VideoFilter? = null
+        filter: VideoFilter? = null,
+        progressCallback: (Float) -> Unit = {}
     ) {
-        val format = extractor.getTrackFormat(trackIndex)
-        val mime = format.getString(MediaFormat.KEY_MIME)
-        val decoder = MediaCodec.createDecoderByType(mime!!)
-        val encoder = MediaCodec.createEncoderByType(mime)
-        
-        decoder.configure(format, null, null, 0)
-        encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        
-        decoder.start()
-        encoder.start()
-        
-        val bufferInfo = MediaCodec.BufferInfo()
-        val maxBufferSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
-        val inputBuffer = ByteBuffer.allocate(maxBufferSize)
-        
         extractor.selectTrack(trackIndex)
-        extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+        val format = extractor.getTrackFormat(trackIndex)
         
-        var isEOS = false
-        while (!isEOS) {
-            val inputBufferId = decoder.dequeueInputBuffer(TIMEOUT_US)
-            if (inputBufferId >= 0) {
-                val inputBuffer = decoder.getInputBuffer(inputBufferId)
-                val sampleSize = extractor.readSampleData(inputBuffer!!, 0)
-                
-                when {
-                    sampleSize < 0 -> {
-                        decoder.queueInputBuffer(
-                            inputBufferId, 0, 0,
-                            0, MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                        )
-                        isEOS = true
-                    }
-                    extractor.sampleTime / 1000 > endMs -> {
-                        decoder.queueInputBuffer(
-                            inputBufferId, 0, 0,
-                            0, MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                        )
-                        isEOS = true
-                    }
-                    else -> {
-                        decoder.queueInputBuffer(
-                            inputBufferId, 0, sampleSize,
-                            extractor.sampleTime, 0
-                        )
-                        extractor.advance()
-                    }
-                }
-            }
+        // Calculate total frames/samples for progress
+        val duration = endMs - startMs
+        val totalBytes = (format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 0) * 
+            (duration / 1000.0 * format.getInteger(MediaFormat.KEY_FRAME_RATE, 30))).toLong()
+        var processedBytes = 0L
+        
+        try {
+            // Seek to start position
+            extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
             
-            val outputBufferId = decoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
-            if (outputBufferId >= 0) {
-                val outputBuffer = decoder.getOutputBuffer(outputBufferId)
-                val presentationTimeUs = (bufferInfo.presentationTimeUs / speed).toLong()
+            val bufferInfo = MediaCodec.BufferInfo()
+            val maxBufferSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
+            val buffer = ByteBuffer.allocate(maxBufferSize)
+            
+            // Process frames/samples
+            while (true) {
+                val sampleSize = extractor.readSampleData(buffer, 0)
+                val sampleTime = extractor.sampleTime
                 
-                // Apply filter or volume adjustment
-                when {
-                    filter != null -> applyFilter(outputBuffer!!, filter)
-                    volume != 1f -> adjustVolume(outputBuffer!!, volume)
+                if (sampleSize < 0 || (sampleTime / 1000) > endMs) {
+                    break
                 }
                 
-                muxer.writeSampleData(outputTrack, outputBuffer!!, bufferInfo)
-                decoder.releaseOutputBuffer(outputBufferId, false)
+                // Apply effects
+                if (filter != null) {
+                    applyFilter(buffer, filter)
+                }
+                if (volume != 1f) {
+                    adjustVolume(buffer, volume)
+                }
+                
+                // Write frame/sample
+                bufferInfo.apply {
+                    this.size = sampleSize
+                    this.offset = 0
+                    this.presentationTimeUs = ((sampleTime - startMs * 1000) / speed).toLong()
+                    this.flags = extractor.sampleFlags
+                }
+                
+                muxer.writeSampleData(outputTrack, buffer, bufferInfo)
+                extractor.advance()
+                
+                // Update progress
+                processedBytes += sampleSize
+                progressCallback(processedBytes.toFloat() / totalBytes)
             }
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to process track: ${e.message}", e)
         }
-        
-        decoder.stop()
-        decoder.release()
-        encoder.stop()
-        encoder.release()
     }
     
     private fun applyFilter(buffer: ByteBuffer, filter: VideoFilter) {
@@ -199,6 +207,8 @@ class VideoProcessor @Inject constructor(
     }
     
     private fun adjustVolume(buffer: ByteBuffer, volume: Float) {
+        if (volume == 1f) return
+        
         val array = ByteArray(buffer.remaining())
         buffer.get(array)
         

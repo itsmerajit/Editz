@@ -95,14 +95,32 @@ fun VideoEditorScreen(
                         )
                     }
                     
-                    Text(
-                        text = "Export",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .clickable { viewModel.saveChanges() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    if (viewModel.isProcessing.collectAsState().value) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Exporting...",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Export",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .clickable { viewModel.saveChanges() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
@@ -127,6 +145,70 @@ fun VideoEditorScreen(
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+
+            // Error and Success States
+            Box(modifier = Modifier.fillMaxWidth()) {
+                val uiState by viewModel.uiState.collectAsState()
+                val error by viewModel.processingError.collectAsState()
+
+                when {
+                    error != null -> {
+                        Snackbar(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .align(Alignment.BottomCenter),
+                            action = {
+                                TextButton(onClick = { viewModel.clearError() }) {
+                                    Text("Dismiss", color = Color.White)
+                                }
+                            },
+                            containerColor = Color.Red.copy(alpha = 0.8f)
+                        ) {
+                            Text(error ?: "")
+                        }
+                    }
+                    uiState is VideoEditorUiState.SaveSuccess -> {
+                        Snackbar(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .align(Alignment.BottomCenter),
+                            action = {
+                                TextButton(onClick = { viewModel.clearError() }) {
+                                    Text("OK", color = Color.White)
+                                }
+                            },
+                            containerColor = Color.Green.copy(alpha = 0.8f)
+                        ) {
+                            Text("Video exported successfully!")
+                        }
+                    }
+                }
+            }
+
+            // Progress Indicator
+            if (viewModel.isProcessing.collectAsState().value) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = EditzColors.Purple,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Text(
+                            text = "Exporting video... ${(viewModel.progress.collectAsState().value * 100).toInt()}%",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
             }
 
             // Video Preview
