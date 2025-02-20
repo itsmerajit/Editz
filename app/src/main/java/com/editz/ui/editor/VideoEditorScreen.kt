@@ -250,19 +250,8 @@ fun VideoEditorScreen(
                         else -> ToolFactory.createTool(tool).Content(
                             modifier = Modifier.fillMaxWidth(),
                             onValueChanged = {
-                                // Handle tool-specific changes through ViewModel
-                                when (tool) {
-                                    VideoTool.STITCH -> { /* Handle stitch */ }
-                                    VideoTool.MASK -> { /* Handle mask */ }
-                                    VideoTool.OPACITY -> { /* Handle opacity */ }
-                                    VideoTool.REPLACE -> { /* Handle replace */ }
-                                    VideoTool.VOICE_EFFECT -> { /* Handle voice */ }
-                                    VideoTool.DUPLICATE -> { /* Handle duplicate */ }
-                                    VideoTool.ROTATE -> { /* Handle rotate */ }
-                                    VideoTool.SPEED -> { /* Handle speed */ }
-                                    VideoTool.TRIM -> { /* Handle trim */ }
-                                    VideoTool.VOICE -> { /* Handle voice */ }
-                                }
+                                // Tool-specific changes are now handled internally by each tool
+                                // through their own ViewModel reference
                             }
                         )
                     }

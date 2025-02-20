@@ -8,6 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.editz.theme.EditzColors
 import com.editz.ui.editor.tools.VideoToolControls
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.editz.ui.editor.VideoEditorViewModel
 
 class SpeedTool : VideoToolControls {
     private val speedOptions = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
@@ -18,6 +20,7 @@ class SpeedTool : VideoToolControls {
         onValueChanged: () -> Unit
     ) {
         var selectedSpeed by remember { mutableFloatStateOf(1f) }
+        val viewModel: VideoEditorViewModel = hiltViewModel()
         
         Column(
             modifier = modifier.padding(16.dp),
@@ -34,8 +37,9 @@ class SpeedTool : VideoToolControls {
             // Speed slider
             Slider(
                 value = selectedSpeed,
-                onValueChange = { 
-                    selectedSpeed = it
+                onValueChange = { newSpeed -> 
+                    selectedSpeed = newSpeed
+                    viewModel.updateSpeed(newSpeed)
                     onValueChanged()
                 },
                 valueRange = 0.25f..2f,
@@ -50,7 +54,7 @@ class SpeedTool : VideoToolControls {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "${selectedSpeed}x",
+                text = "${String.format("%.2f", selectedSpeed)}x",
                 style = MaterialTheme.typography.bodyLarge,
                 color = EditzColors.TextPrimary
             )
@@ -68,6 +72,7 @@ class SpeedTool : VideoToolControls {
                         isSelected = selectedSpeed == speed,
                         onClick = {
                             selectedSpeed = speed
+                            viewModel.updateSpeed(speed)
                             onValueChanged()
                         }
                     )
