@@ -68,6 +68,7 @@ private fun ToolItem(
                 VideoTool.DUPLICATE -> Icons.Default.ContentCopy
                 VideoTool.ROTATE -> Icons.Default.Rotate90DegreesCcw
                 VideoTool.SPEED -> Icons.Default.Speed
+                VideoTool.VOICE -> Icons.Default.VoiceChat
             },
             contentDescription = tool.name,
             tint = if (isSelected) EditzColors.Purple else EditzColors.TextPrimary

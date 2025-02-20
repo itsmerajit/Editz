@@ -9,19 +9,21 @@ import com.editz.ui.editor.tools.stitch.StitchTool
 import com.editz.ui.editor.tools.mask.MaskTool
 import com.editz.ui.editor.tools.opacity.OpacityTool
 import com.editz.ui.editor.tools.voice.VoiceEffectTool
+import com.editz.ui.editor.tools.trim.TrimTool
 
 object ToolFactory {
     fun createTool(tool: VideoTool): VideoToolControls {
         return when (tool) {
-            VideoTool.STITCH -> StitchTool()
             VideoTool.TRIM -> TrimTool()
-            VideoTool.MASK -> MaskTool()
-            VideoTool.OPACITY -> OpacityTool()
-            VideoTool.REPLACE -> ReplaceTool()
-            VideoTool.VOICE_EFFECT -> VoiceEffectTool()
-            VideoTool.DUPLICATE -> DuplicateTool()
             VideoTool.ROTATE -> RotateTool()
             VideoTool.SPEED -> SpeedTool()
+            VideoTool.VOICE_EFFECT -> VoiceEffectTool()
+            VideoTool.OPACITY -> OpacityTool()
+            VideoTool.MASK -> MaskTool()
+            VideoTool.STITCH -> StitchTool()
+            VideoTool.REPLACE -> ReplaceTool()
+            VideoTool.DUPLICATE -> DuplicateTool()
+            VideoTool.VOICE -> VoiceEffectTool()
         }
     }
 }
