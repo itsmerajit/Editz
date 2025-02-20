@@ -66,6 +66,46 @@
                                                                                    │
 ```
 
+## Video Saving Flow Diagram
+
+```ascii
+                    Video Saving Process Flow
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  ┌──────────────┐   ┌───────────────┐   ┌────────────────┐  │
+│  │ Edit Screen  │   │ Save Manager  │   │ Storage Access │  │
+│  └──────┬───────┘   └──────┬────────┘   └───────┬────────┘  │
+│         │                   │                    │           │
+│    Save Button              │                    │           │
+│         │                   │                    │           │
+│         ▼                   │                    │           │
+│  Check Permissions          │                    │           │
+│         │                   │                    │           │
+│         │  Request Save     │                    │           │
+│         │ ─────────────────>│                    │           │
+│         │                   │                    │           │
+│         │                   │  Prepare Storage   │           │
+│         │                   │ ──────────────────>│           │
+│         │                   │                    │           │
+│         │                   │   Storage Ready    │           │
+│         │                   │ <─ ─ ─ ─ ─ ─ ─ ─ ─│           │
+│         │                   │                    │           │
+│         │                   │  Write Video File  │           │
+│         │                   │ ──────────────────>│           │
+│         │                   │                    │           │
+│         │                   │   Save Complete    │           │
+│         │                   │ <─ ─ ─ ─ ─ ─ ─ ─ ─│           │
+│         │                   │                    │           │
+│         │   Save Status     │                    │           │
+│         │ <─ ─ ─ ─ ─ ─ ─ ─ │                    │           │
+│         │                   │                    │           │
+│  Update UI Status          │                    │           │
+│         │                   │                    │           │
+└─────────┼───────────────────┼────────────────────┼──────────┘
+          │                   │                    │
+          ▼                   ▼                    ▼
+```
+
 ## Technical Specifications
 
 ### Core Technologies
