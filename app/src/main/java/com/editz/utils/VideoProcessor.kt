@@ -2,6 +2,7 @@ package com.editz.utils
 
 import android.content.Context
 import android.media.MediaCodec
+import android.media.MediaCodecInfo
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
@@ -20,6 +21,20 @@ import javax.inject.Singleton
 class VideoProcessor @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    companion object {
+        private const val TAG = "VideoProcessor"
+        private const val TIMEOUT_US = 10000L
+        
+        // Color format constants
+        private const val COLOR_FormatYUV420Planar = 19
+        private const val COLOR_FormatYUV420PackedPlanar = 20
+        private const val COLOR_FormatYUV420SemiPlanar = 21
+        private const val COLOR_FormatYUV420PackedSemiPlanar = 39
+        
+        // Profile constants
+        private const val AVC_PROFILE_BASELINE = 0x01
+        private const val AVC_LEVEL_31 = 0x10
+    }
     
     suspend fun processVideo(
         inputUri: Uri,
@@ -200,122 +215,225 @@ class VideoProcessor @Inject constructor(
         filter: VideoFilter,
         progressCallback: (Float) -> Unit
     ) {
+        var decoder: MediaCodec? = null
+        var encoder: MediaCodec? = null
+        
         try {
+            Log.d(TAG, "Starting video track processing: trackIndex=$trackIndex, startMs=$startMs, endMs=$endMs, speed=$speed")
             extractor.selectTrack(trackIndex)
-            val format = extractor.getTrackFormat(trackIndex)
+            val inputFormat = extractor.getTrackFormat(trackIndex)
+            Log.d(TAG, "Input format: $inputFormat")
             
-            // Get frame rate and calculate adjusted timing
-            val frameRate = format.getInteger(MediaFormat.KEY_FRAME_RATE, 30)
+            // Validate video format before processing
+            if (!inputFormat.containsKey(MediaFormat.KEY_MIME)) {
+                throw IllegalStateException("Invalid video format: Missing MIME type")
+            }
+
+            // Get format parameters with defaults
+            val width = inputFormat.getInteger(MediaFormat.KEY_WIDTH)
+            val height = inputFormat.getInteger(MediaFormat.KEY_HEIGHT)
+            val bitRate = try {
+                inputFormat.getInteger(MediaFormat.KEY_BIT_RATE)
+            } catch (e: Exception) {
+                width * height * 4  // Default bitrate based on resolution
+            }
+            val frameRate = try {
+                inputFormat.getInteger(MediaFormat.KEY_FRAME_RATE)
+            } catch (e: Exception) {
+                30  // Default frame rate
+            }
+            
+            Log.d(TAG, "Video parameters: width=$width, height=$height, bitRate=$bitRate, frameRate=$frameRate")
+            
+            // Configure decoder
+            val mime = inputFormat.getString(MediaFormat.KEY_MIME)!!
+            Log.d(TAG, "Creating decoder for mime type: $mime")
+            decoder = MediaCodec.createDecoderByType(mime)
+            
+            // Set color aspects before configuring decoder
+            inputFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaCodecInfo.CodecCapabilities.COLOR_STANDARD_BT709)
+            inputFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaCodecInfo.CodecCapabilities.COLOR_RANGE_FULL)
+            inputFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaCodecInfo.CodecCapabilities.COLOR_TRANSFER_SDR_VIDEO)
+            
+            decoder.configure(inputFormat, null, null, 0)
+            decoder.start()
+            Log.d(TAG, "Decoder configured and started with format: $inputFormat")
+            
+            // Configure encoder with compatible format
+            Log.d(TAG, "Creating encoder for mime type: $mime")
+            encoder = MediaCodec.createEncoderByType(mime)
+            
+            // Create a new format instead of modifying the input format
+            val outputFormat = MediaFormat.createVideoFormat(mime, width, height).apply {
+                // Essential parameters
+                setInteger(MediaFormat.KEY_WIDTH, width)
+                setInteger(MediaFormat.KEY_HEIGHT, height)
+                setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+                setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
+                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+                
+                // Copy color aspects from input format
+                setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaCodecInfo.CodecCapabilities.COLOR_STANDARD_BT709)
+                setInteger(MediaFormat.KEY_COLOR_RANGE, MediaCodecInfo.CodecCapabilities.COLOR_RANGE_FULL)
+                setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaCodecInfo.CodecCapabilities.COLOR_TRANSFER_SDR_VIDEO)
+                
+                // Use default color format for encoder with proper null checks
+                val selectedColorFormat = try {
+                    val codecInfo = encoder.codecInfo
+                    if (codecInfo == null) {
+                        Log.e(TAG, "Encoder codec info is null!")
+                        throw IllegalStateException("Encoder codec info is null")
+                    }
+                    
+                    val capabilities = codecInfo.getCapabilitiesForType(mime)
+                    if (capabilities == null) {
+                        Log.e(TAG, "Encoder capabilities are null!")
+                        throw IllegalStateException("Encoder capabilities are null")
+                    }
+                    
+                    val colorFormats = capabilities.colorFormats
+                    Log.d(TAG, "Available encoder color formats: ${colorFormats.joinToString()}")
+                    
+                    colorFormats.find { format ->
+                        format == COLOR_FormatYUV420SemiPlanar
+                    } ?: colorFormats.firstOrNull() ?: throw IllegalStateException("No supported color formats found")
+                    
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error selecting color format: ${e.message}")
+                    COLOR_FormatYUV420SemiPlanar
+                }
+                
+                Log.d(TAG, "Setting encoder color format to: $selectedColorFormat")
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, selectedColorFormat)
+                
+                // Set profile and level for better compatibility
+                if (mime.contains("avc", ignoreCase = true)) {
+                    setInteger(MediaFormat.KEY_PROFILE, AVC_PROFILE_BASELINE)
+                    setInteger(MediaFormat.KEY_LEVEL, AVC_LEVEL_31)
+                }
+            }
+            
+            Log.d(TAG, "Final output format: $outputFormat")
+            
+            try {
+                encoder.configure(outputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to configure encoder: ${e.message}")
+                throw IllegalStateException("Failed to configure encoder: ${e.message}")
+            }
+            
+            encoder.start()
+            Log.d(TAG, "Encoder configured and started")
+            
             val duration = endMs - startMs
             val totalFrames = (duration / 1000.0 * frameRate).toLong()
             var processedFrames = 0L
-            var lastPresentationTimeUs = 0L
             
-            // Calculate frame interval and frame dropping for high speeds
-            val normalFrameIntervalUs = 1_000_000L / frameRate
-            val speedAdjustedIntervalUs = (normalFrameIntervalUs / speed).toLong()
-            val framesToSkip = if (speed > 1.0f) (speed - 1.0f).toInt() else 0
-            var frameCounter = 0
+            Log.d(TAG, "Calculated frames: duration=${duration}ms, totalFrames=$totalFrames")
             
-            try {
-                // Seek to start position
-                extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-                
-                val bufferInfo = MediaCodec.BufferInfo()
-                val maxBufferSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 1024 * 1024)
-                val buffer = ByteBuffer.allocate(maxBufferSize)
-                var lastKeyFrameData: ByteArray? = null
-                var isKeyFrame = false
-                
-                while (true) {
-                    buffer.clear()
-                    val sampleSize = extractor.readSampleData(buffer, 0)
-                    if (sampleSize < 0) {
-                        Log.d(TAG, "Reached end of video track")
-                        break
-                    }
-                    
-                    val sampleTime = extractor.sampleTime
-                    if ((sampleTime / 1000) > endMs) {
-                        Log.d(TAG, "Reached end time for video")
-                        break
-                    }
-                    
-                    isKeyFrame = (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0
-                    
-                    // For high speeds, only process key frames and selected frames
-                    if (speed > 1.0f) {
-                        if (!isKeyFrame && frameCounter % (framesToSkip + 1) != 0) {
-                            extractor.advance()
-                            frameCounter++
+            // Seek to start position
+            extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            Log.d(TAG, "Extractor seeked to position: ${startMs}ms")
+            
+            val info = MediaCodec.BufferInfo()
+            val timeoutUs = 10000L
+            var inputDone = false
+            var outputDone = false
+            var hasCodecSpecificData = false
+            
+            while (!outputDone) {
+                if (!inputDone) {
+                    val inputBufferId = decoder.dequeueInputBuffer(timeoutUs)
+                    if (inputBufferId >= 0) {
+                        val inputBuffer = decoder.getInputBuffer(inputBufferId)
+                        
+                        // Check for corrupt frames
+                        if (inputBuffer == null || inputBuffer.remaining() == 0) {
+                            Log.w(TAG, "Skipping corrupt video frame")
                             continue
                         }
-                    }
-                    
-                    // Store key frame data
-                    if (isKeyFrame) {
-                        val tempBuffer = ByteArray(sampleSize)
-                        buffer.get(tempBuffer)
-                        lastKeyFrameData = tempBuffer
-                        buffer.position(0)
-                    }
-                    
-                    // Calculate presentation time
-                    val adjustedTimeUs = if (processedFrames == 0L) {
-                        0L
-                    } else {
-                        lastPresentationTimeUs + speedAdjustedIntervalUs
-                    }
-                    lastPresentationTimeUs = adjustedTimeUs
-                    
-                    // Write frame
-                    bufferInfo.apply {
-                        this.size = sampleSize
-                        this.offset = 0
-                        this.presentationTimeUs = adjustedTimeUs
-                        this.flags = extractor.sampleFlags
-                    }
-                    
-                    try {
-                        muxer.writeSampleData(outputTrack, buffer, bufferInfo)
-                    } catch (e: Exception) {
-                        if (isKeyFrame || lastKeyFrameData == null) {
-                            Log.e(TAG, "Error writing video sample: ${e.message}")
-                            throw IllegalStateException("Failed to write video sample: ${e.message}")
-                        } else {
-                            // If writing fails for a non-key frame, try using the last key frame
-                            buffer.clear()
-                            buffer.put(lastKeyFrameData)
-                            buffer.flip()
-                            try {
-                                muxer.writeSampleData(outputTrack, buffer, bufferInfo)
-                            } catch (e2: Exception) {
-                                Log.e(TAG, "Error writing fallback frame: ${e2.message}")
-                                throw IllegalStateException("Failed to write video frame: ${e2.message}")
+                        
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                        val sampleTime = extractor.sampleTime
+                        
+                        when {
+                            sampleSize < 0 -> {
+                                Log.d(TAG, "Reached end of input stream")
+                                decoder.queueInputBuffer(inputBufferId, 0, 0, 0L,
+                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                inputDone = true
+                            }
+                            (sampleTime / 1000) > endMs -> {
+                                Log.d(TAG, "Reached end time: current=${sampleTime/1000}ms, target=${endMs}ms")
+                                decoder.queueInputBuffer(inputBufferId, 0, 0, 0L,
+                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                inputDone = true
+                            }
+                            else -> {
+                                val presentationTimeUs = (sampleTime / speed).toLong()
+                                decoder.queueInputBuffer(inputBufferId, 0, sampleSize,
+                                    presentationTimeUs, extractor.sampleFlags)
+                                Log.v(TAG, "Queued input buffer: size=$sampleSize, time=${presentationTimeUs}us")
+                                extractor.advance()
                             }
                         }
                     }
-                    
-                    // Advance to next frame
-                    if (!extractor.advance()) {
-                        Log.d(TAG, "No more video samples to process")
-                        break
-                    }
-                    
-                    // Update progress
-                    processedFrames++
-                    frameCounter++
-                    progressCallback(processedFrames.toFloat() / totalFrames)
                 }
                 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing video frames: ${e.message}", e)
-                throw IllegalStateException("Failed to process video frames: ${e.message}")
+                // Handle encoder output
+                val encoderOutputId = encoder.dequeueOutputBuffer(info, timeoutUs)
+                when {
+                    encoderOutputId >= 0 -> {
+                        val encodedData = encoder.getOutputBuffer(encoderOutputId)!!
+                        if (info.size > 0) {
+                            // Check for codec-specific data
+                            if ((info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                if (!hasCodecSpecificData) {
+                                    Log.d(TAG, "Writing codec specific data")
+                                    muxer.writeSampleData(outputTrack, encodedData, info)
+                                    hasCodecSpecificData = true
+                                } else {
+                                    Log.d(TAG, "Skipping duplicate codec specific data")
+                                }
+                            } else {
+                                Log.v(TAG, "Writing encoded data: size=${info.size}, time=${info.presentationTimeUs}us")
+                                muxer.writeSampleData(outputTrack, encodedData, info)
+                            }
+                        }
+                        encoder.releaseOutputBuffer(encoderOutputId, false)
+                        if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                            Log.d(TAG, "Encoder signaled end of stream")
+                            outputDone = true
+                        }
+                    }
+                    encoderOutputId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        val newFormat = encoder.getOutputFormat()
+                        Log.d(TAG, "Encoder output format changed: $newFormat")
+                    }
+                    encoderOutputId == MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                        Log.v(TAG, "Encoder output not available yet")
+                    }
+                }
             }
             
+            Log.d(TAG, "Video track processing completed successfully: processed $processedFrames frames")
+            
         } catch (e: Exception) {
-            Log.e(TAG, "Error in video track processing: ${e.message}", e)
-            throw IllegalStateException("Failed to process video track: ${e.message}")
+            Log.e(TAG, "Error processing video track", e)
+            Log.e(TAG, "Stack trace: ${e.stackTrace.joinToString("\n")}")
+            Log.e(TAG, "Cause: ${e.cause?.message ?: "Unknown"}")
+            throw IllegalStateException("Failed to process video track: ${e.message}", e)
+        } finally {
+            try {
+                Log.d(TAG, "Cleaning up codec resources")
+                decoder?.stop()
+                decoder?.release()
+                encoder?.stop()
+                encoder?.release()
+                Log.d(TAG, "Codec resources released")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing codecs", e)
+            }
         }
     }
     
@@ -439,9 +557,4 @@ class VideoProcessor @Inject constructor(
             }
         }
     }
-    
-    companion object {
-        private const val TAG = "VideoProcessor"
-        private const val TIMEOUT_US = 10000L
-    }
-} 
+}
