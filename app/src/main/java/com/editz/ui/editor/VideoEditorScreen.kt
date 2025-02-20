@@ -33,6 +33,7 @@ import com.editz.ui.editor.components.VideoTrimmer
 import com.editz.ui.editor.components.VideoAdvancedControls
 import com.editz.ui.editor.model.VideoTool
 import androidx.compose.foundation.clickable
+import com.editz.ui.editor.tools.ToolFactory
 
 @Composable
 fun VideoEditorScreen(
@@ -227,23 +228,45 @@ fun VideoEditorScreen(
             }
 
             // Tool-specific controls
-            if (selectedTool == VideoTool.TRIM) {
-                VideoTrimmer(
-                    duration = videoDetails.duration,
-                    currentPosition = currentPosition,
-                    trimStartMs = trimStartMs,
-                    trimEndMs = trimEndMs,
-                    onStartMsChange = viewModel::updateTrimStart,
-                    onEndMsChange = viewModel::updateTrimEnd,
-                    onCurrentPositionChange = { position ->
-                        currentPosition = position
-                        viewModel.updatePosition(position)
-                    },
+            selectedTool?.let { tool ->
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFF1A1A1A))
                         .padding(vertical = 16.dp)
-                )
+                ) {
+                    when (tool) {
+                        VideoTool.TRIM -> VideoTrimmer(
+                            duration = videoDetails.duration,
+                            currentPosition = currentPosition,
+                            trimStartMs = trimStartMs,
+                            trimEndMs = trimEndMs,
+                            onStartMsChange = viewModel::updateTrimStart,
+                            onEndMsChange = viewModel::updateTrimEnd,
+                            onCurrentPositionChange = { position ->
+                                currentPosition = position
+                                viewModel.updatePosition(position)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        else -> ToolFactory.createTool(tool).Content(
+                            modifier = Modifier.fillMaxWidth(),
+                            onValueChanged = {
+                                // Handle tool-specific changes through ViewModel
+                                when (tool) {
+                                    VideoTool.STITCH -> { /* Handle stitch */ }
+                                    VideoTool.MASK -> { /* Handle mask */ }
+                                    VideoTool.OPACITY -> { /* Handle opacity */ }
+                                    VideoTool.REPLACE -> { /* Handle replace */ }
+                                    VideoTool.VOICE_EFFECT -> { /* Handle voice */ }
+                                    VideoTool.DUPLICATE -> { /* Handle duplicate */ }
+                                    VideoTool.ROTATE -> { /* Handle rotate */ }
+                                    else -> {}
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }
